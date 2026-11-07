@@ -1,1 +1,23 @@
-{"bpm":120,"meter":[4,4],"beatsPerLoop":64,"durationSeconds":32,"startOffsetSeconds":0,"roles":{"nova":"nova.wav","luna":"luna.wav","echo":"echo.wav"},"alternatives":{"fullMix":"concert-full.wav","instrumental":"concert-instrumental.wav","vocals":"concert-vocals.wav"},"selection":"all three aligned agent stems, else instrumental + vocals, else full mix, else explicitly synthetic"}
+{
+  "bpm": 120,
+  "meter": [
+    4,
+    4
+  ],
+  "beatsPerLoop": 64,
+  "durationSeconds": 32,
+  "startOffsetSeconds": 0,
+  "roles": {
+    "nova": "nova.wav",
+    "luna": "luna.wav",
+    "echo": "echo.wav"
+  },
+  "alternatives": {
+    "fullMix": "concert-full.wav",
+    "instrumental": "concert-instrumental.wav",
+    "vocals": "concert-vocals.wav"
+  },
+  "selection": "all three aligned agent stems, else instrumental + vocals, else full mix, else explicitly synthetic",
+  "availableFiles": [],
+  "note": "Declare only files actually present to avoid missing-file fetches. Runtime file picker needs no manifest edits."
+}

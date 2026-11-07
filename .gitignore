@@ -9,3 +9,4 @@ public/models/*.vrma
 browser-preview.png
 test-results/
 playwright-report/
+.demo-audio/

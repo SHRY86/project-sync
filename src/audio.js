@@ -1,3 +1,4 @@
+import { audioName, validateDuration, chooseAudioMode, validateFile, withObjectURL } from './assets.js';
 import { audioCommands } from './audio-selection.js';
 import { freshStates } from './metrics.js';
 /**
@@ -11,16 +12,36 @@ const FORMANTS = {
   i: [300, 2200, 3000], o: [500, 900, 2600], u: [350, 800, 2200]
 };
 export class VocalMixer {
-  constructor() { this.ctx = null; this.voices = []; this.enabled = false; this.buffers=new Map();this.tracks=new Map();this.status='Synthetic vowel arrangement · no VOCALOID assets';this.volume=.4;this.generation=0; }
-  async loadAssets() {
-    await Promise.all(['nova','luna','echo','concert-full','concert-instrumental','concert-vocals'].map(async name=>{
-      try { const r=await fetch(`/audio/${name}.wav`);if(!r.ok) return;const b=await this.ctx.decodeAudioData(await r.arrayBuffer());if(Math.abs(b.duration-32)>.06) throw new Error('Expected exactly 32 seconds');const fade=Math.floor(b.sampleRate*.004);for(let c=0;c<b.numberOfChannels;c++){const samples=b.getChannelData(c);for(let i=0;i<fade;i++){samples[i]*=i/fade;samples[samples.length-1-i]*=i/fade;}}this.buffers.set(name,b); }
-      catch(e){console.info(`Audio ${name}: ${e.message}`);}
-    }));
-    this.selection=['nova','luna','echo'].every(n=>this.buffers.has(n)) ? ['nova','luna','echo'] : ['concert-instrumental','concert-vocals'].every(n=>this.buffers.has(n)) ? ['concert-instrumental','concert-vocals'] : this.buffers.has('concert-full') ? ['concert-full'] : [];
-    this.status=this.selection.length===3 ? 'Aligned per-agent stems' : this.selection.length ? 'Demonstration mix fallback · median of fresh living agents' : 'Synthetic vowel arrangement · not VOCALOID singing';
+  constructor() { this.ctx = null; this.voices = []; this.enabled = false; this.buffers=new Map();this.tracks=new Map();this.status='Synthetic vowel arrangement · no VOCALOID assets';this.volume=.4;this.generation=0;this.assetReport=[]; }
+  async decode(name,bytes){
+    const buffer=await this.ctx.decodeAudioData(bytes);validateDuration(buffer.duration);
+    const fade=Math.floor(buffer.sampleRate*.004);
+    for(let c=0;c<buffer.numberOfChannels;c++){const samples=buffer.getChannelData(c);for(let i=0;i<fade;i++){samples[i]*=i/fade;samples[samples.length-1-i]*=i/fade;}}
+    this.buffers.set(name,buffer);
   }
-  async enable() { if(!this.ctx) {this.create();await this.ctx.resume();await this.loadAssets();}await this.ctx.resume();this.enabled=true; }
+  selectMode(){const mode=chooseAudioMode(this.buffers);this.selection=mode.selection;this.status=mode.label;}
+  async loadAssets(){
+    try{
+      const response=await fetch('/audio/manifest.json');if(!response.ok)throw new Error('Manifest unavailable');
+      const manifest=await response.json();
+      for(const filename of manifest.availableFiles||[]){
+        try{const name=audioName(filename);const r=await fetch(`/audio/${filename}`);if(!r.ok)throw new Error('Declared file unavailable');await this.decode(name,await r.arrayBuffer());this.assetReport.push(`${filename}: loaded`);}
+        catch(e){this.assetReport.push(`${filename}: ${e.message}`);}
+      }
+    }catch(e){this.assetReport.push(`Local manifest: ${e.message}`);}
+    this.selectMode();
+  }
+  async enable(){
+    if(!this.ctx)this.create();await this.ctx.resume();
+    this.loading??=this.loadAssets();await this.loading;
+    this.enabled=true;this.setVolume(this.volume);
+  }
+  async loadFiles(files){
+    await this.enable();const reports=[];
+    for(const file of files){let name;try{validateFile(file,'.wav');name=audioName(file.name);await withObjectURL(file,async url=>{const r=await fetch(url);await this.decode(name,await r.arrayBuffer());});reports.push(`${file.name}: valid 32 s WAV loaded locally`);}
+      catch(e){if(name)this.buffers.delete(name);reports.push(`${file.name}: rejected — ${e.message}`);}}
+    this.reset();this.selectMode();this.assetReport=reports;return reports;
+  }
   setVolume(value){this.volume=value;if(this.master)this.master.gain.setTargetAtTime(this.enabled?value:0,this.ctx.currentTime,.03);}
   reset(){this.generation++;for(const t of this.tracks.values())this.fadeStop(t);this.tracks.clear();this.voices.forEach(v=>{v.lastNote=-1;v.noteGain.gain.setTargetAtTime(0,this.ctx.currentTime,.01);});}
   fadeStop(t){const now=this.ctx.currentTime;t.gain.gain.cancelScheduledValues(now);t.gain.gain.setTargetAtTime(0,now,.015);try{t.source.stop(now+.08);}catch{}}
@@ -36,10 +57,9 @@ export class VocalMixer {
     source.start(now+.025,(desired+.025)%32);this.tracks.set(name,{source,gain,position:(desired+.025)%32,at:now+.025,rate:1});
   }
   async toggle() {
-    if (!this.ctx) this.create();
     await this.enable();
     this.enabled = !this.wasEnabled; this.wasEnabled=this.enabled; this.setVolume(this.volume);
-    this.voices.forEach(v => v.output.gain.setTargetAtTime(this.enabled ? 1 : 0, this.ctx.currentTime, .035));
+
     return this.enabled;
   }
   create() {

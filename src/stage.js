@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { VRMAnimationLoaderPlugin, createVRMAnimationClip, VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation';
+import { sampleAnimation } from './animation.js';
+import { validateFile, withObjectURL } from './assets.js';
 import { AGENT_COLORS } from './score.js';
 
 /** Visualization only: renders states chosen independently by the workers. */
@@ -25,33 +28,64 @@ export class ConcertStage {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
-    this.cameraMode='front';this.assetStatus=Array(3).fill('Procedural fallback');this.loadModels();
+    this.cameraMode='front';this.assetStatus=Array(3).fill('Procedural fallback');this.animationStatus=Array(3).fill('Procedural dance');this.loadModels();
   }
-  async loadModels() {
-    const loader=new GLTFLoader();loader.register(parser=>new VRMLoaderPlugin(parser));
-    await Promise.all(['nova','luna','echo'].map(async(name,id)=>{
-      try {
-        const check=await fetch(`/models/${name}.vrm`,{method:'HEAD'});if(!check.ok || check.headers.get('content-type')?.includes('text/html'))return;
-        const gltf=await loader.loadAsync(`/models/${name}.vrm`);const vrm=gltf.userData.vrm;if(!vrm?.humanoid)throw new Error('No VRM humanoid');
-        VRMUtils.rotateVRM0(vrm);
-        vrm.scene.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(vrm.scene);const height=bounds.max.y-bounds.min.y;
-        if(!Number.isFinite(height)||height<.1)throw new Error('Invalid proportions');
-        vrm.scene.scale.setScalar(3.5/height);vrm.scene.position.y=-bounds.min.y*3.5/height;
-        const d=this.dancers[id];d.torso.visible=false;d.root.add(vrm.scene);d.vrm=vrm;d.rest=new Map();
-        for(const bone of ['hips','spine','leftUpperArm','rightUpperArm','leftUpperLeg','rightUpperLeg']){const b=vrm.humanoid.getNormalizedBoneNode(bone);if(b)d.rest.set(bone,b.quaternion.clone());}
-        this.assetStatus[id]='VRM loaded';
-      }catch(e){this.assetStatus[id]=`Procedural fallback (${e.message})`;console.info(name,e);}
-    }));
+  loader(){
+    const manager=new THREE.LoadingManager();
+    manager.setURLModifier(url=>{if(url.startsWith('blob:')||url.startsWith('data:')||url.startsWith('/models/')||url.startsWith(`${location.origin}/models/`))return url;throw new Error('External model resources blocked; export a self-contained GLB/VRM');});
+    const loader=new GLTFLoader(manager);loader.register(parser=>new VRMLoaderPlugin(parser));loader.register(parser=>new VRMAnimationLoaderPlugin(parser));return loader;
   }
+  async loadModels(){
+    try{const r=await fetch('/models/manifest.json');if(!r.ok)return;const manifest=await r.json();
+      await Promise.all(['nova','luna','echo'].map(async(name,id)=>{
+        if(manifest.models?.[name])await this.loadModel(id,`/models/${manifest.models[name]}`);
+        if(manifest.animations?.[name])await this.loadAnimation(id,`/models/${manifest.animations[name]}`);
+      }));
+    }catch(e){this.assetStatus.fill(`Procedural fallback: ${e.message}`);}
+  }
+  clearModel(id){
+    const d=this.dancers[id];d.mixer?.stopAllAction();d.mixer=null;
+    if(d.vrm){d.root.remove(d.vrm.scene);VRMUtils.deepDispose(d.vrm.scene);d.vrm=null;}
+    d.torso.visible=true;
+  }
+  async loadModel(id,url){
+    this.clearModel(id);let candidate;
+    try{
+      const gltf=await this.loader().loadAsync(url),vrm=gltf.userData.vrm;candidate=vrm;if(!vrm?.humanoid)throw new Error('No VRM humanoid');
+      VRMUtils.rotateVRM0(vrm);vrm.scene.updateMatrixWorld(true);
+      const bounds=new THREE.Box3().setFromObject(vrm.scene),height=bounds.max.y-bounds.min.y;
+      if(!Number.isFinite(height)||height<.1)throw new Error('Invalid model proportions');
+      vrm.scene.scale.setScalar(3.5/height);vrm.scene.position.y=-bounds.min.y*3.5/height;
+      if(vrm.lookAt){const proxy=new VRMLookAtQuaternionProxy(vrm.lookAt);proxy.name='lookAtQuaternionProxy';vrm.scene.add(proxy);}
+      const d=this.dancers[id];d.vrm=vrm;d.root.add(vrm.scene);d.torso.visible=false;d.rest=new Map();
+      for(const name of ['hips','spine','leftUpperArm','rightUpperArm','leftUpperLeg','rightUpperLeg']){const b=vrm.humanoid.getNormalizedBoneNode(name);if(b)d.rest.set(name,b.quaternion.clone());}
+      this.assetStatus[id]='VRM loaded locally';if(d.animation)this.bindAnimation(id);return true;
+    }catch(e){if(this.dancers[id].vrm)this.clearModel(id);else if(candidate?.scene)VRMUtils.deepDispose(candidate.scene);this.assetStatus[id]=`Procedural fallback: ${e.message}`;return false;}
+  }
+  bindAnimation(id){
+    const d=this.dancers[id];if(!d.vrm||!d.animation)return;
+    d.mixer?.stopAllAction();const clip=createVRMAnimationClip(d.animation,d.vrm);
+    if(!Number.isFinite(clip.duration)||clip.duration<=0)throw new Error('Empty VRMA clip');
+    d.mixer=new THREE.AnimationMixer(d.vrm.scene);d.mixer.clipAction(clip).play();d.clipDuration=clip.duration;this.animationStatus[id]=`VRMA beat-sampled (${clip.duration.toFixed(2)} s)`;
+  }
+  async loadAnimation(id,url){
+    const d=this.dancers[id];d.mixer?.stopAllAction();d.mixer=null;d.animation=null;
+    try{const gltf=await this.loader().loadAsync(url);const animation=gltf.userData.vrmAnimations?.[0];if(!animation)throw new Error('No VRM animation');d.animation=animation;
+      this.animationStatus[id]='VRMA loaded; assign a VRM to play';this.bindAnimation(id);return true;
+    }catch(e){d.animation=null;d.mixer=null;this.animationStatus[id]=`Procedural dance: ${e.message}`;return false;}
+  }
+  async loadModelFile(id,file){try{validateFile(file,'.vrm');return await withObjectURL(file,url=>this.loadModel(id,url));}catch(e){this.clearModel(id);this.assetStatus[id]=`Procedural fallback: ${e.message}`;return false;}}
+  async loadAnimationFile(id,file){try{validateFile(file,'.vrma');return await withObjectURL(file,url=>this.loadAnimation(id,url));}catch(e){this.dancers[id].mixer=null;this.animationStatus[id]=`Procedural dance: ${e.message}`;return false;}}
   applyVRM(d,pose,state){
     const offsets={hips:[0,pose.turn,pose.body],spine:[0,pose.turn*.3,pose.body*.5],leftUpperArm:[0,0,1.25+pose.armL*.7],rightUpperArm:[0,0,-1.25-pose.armR*.7],leftUpperLeg:[pose.legL,0,0],rightUpperLeg:[pose.legR,0,0]};
-    for(const [name,angles] of Object.entries(offsets)){const b=d.vrm.humanoid.getNormalizedBoneNode(name),rest=d.rest.get(name);if(b&&rest)b.quaternion.copy(rest).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...angles)));}
+    if(d.mixer)sampleAnimation(d.mixer,state.beat,d.clipDuration);
+    else for(const [name,angles] of Object.entries(offsets)){const b=d.vrm.humanoid.getNormalizedBoneNode(name),rest=d.rest.get(name);if(b&&rest)b.quaternion.copy(rest).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...angles)));}
     // Synthetic vowels are coarse cues only, never asserted to match WAV lyrics.
-    for(const vowel of ['aa','ih','ou','ee','oh'])d.vrm.expressionManager?.setValue(vowel,0);
+    if(!d.mixer)for(const vowel of ['aa','ih','ou','ee','oh'])d.vrm.expressionManager?.setValue(vowel,0);
     const vowel={a:'aa',i:'ih',u:'ou',e:'ee',o:'oh'}[state.voice.vowel];
-    if(vowel)d.vrm.expressionManager?.setValue(vowel,state.playing && state.voice.pitch > 0 ? .15 : 0);
-    d.vrm.expressionManager?.setValue('blink',Math.max(0,1-Math.abs((state.beat%9)-8.8)*10));
-    d.vrm.update(1/60);
+    if(vowel&&!d.mixer)d.vrm.expressionManager?.setValue(vowel,state.playing && state.voice.pitch > 0 ? .15 : 0);
+    if(!d.mixer)d.vrm.expressionManager?.setValue('blink',Math.max(0,1-Math.abs((state.beat%9)-8.8)*10));
+    d.vrm.update(0);
   }
   add(geometry, material, parent, x = 0, y = 0, z = 0) {
     const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); parent.add(mesh); return mesh;
