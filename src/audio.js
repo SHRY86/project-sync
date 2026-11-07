@@ -12,20 +12,25 @@ const FORMANTS = {
   i: [300, 2200, 3000], o: [500, 900, 2600], u: [350, 800, 2200]
 };
 export class VocalMixer {
-  constructor() { this.ctx = null; this.voices = []; this.enabled = false; this.buffers=new Map();this.tracks=new Map();this.status='Synthetic vowel arrangement · no VOCALOID assets';this.volume=.4;this.assetReport=[]; }
+  constructor() { this.ctx = null; this.voices = []; this.enabled = false; this.buffers=new Map();this.tracks=new Map();this.status='Synthetic vowel arrangement · no VOCALOID assets';this.volume=.4;this.assetReport=[];this.completed=new Set();this.durationSeconds=16;this.title='Frère Jacques · synthetic guide'; }
   async decode(name,bytes){
     const buffer=await this.ctx.decodeAudioData(bytes);validateDuration(buffer.duration);
-    const fade=Math.floor(buffer.sampleRate*.004);
+    const fade=Math.floor(Math.min(buffer.sampleRate*.004,buffer.length/2));
     for(let c=0;c<buffer.numberOfChannels;c++){const samples=buffer.getChannelData(c);for(let i=0;i<fade;i++){samples[i]*=i/fade;samples[samples.length-1-i]*=i/fade;}}
     this.buffers.set(name,buffer);
   }
-  selectMode(){const mode=chooseAudioMode(this.buffers);this.selection=mode.selection;this.status=mode.label;}
+  selectMode(){
+    const mode=chooseAudioMode(this.buffers);this.selection=mode.selection;this.status=mode.label;
+    this.durationSeconds=mode.selection.length?Math.min(...mode.selection.map(n=>this.buffers.get(n).duration)):16;
+    this.status+=` · ${this.durationSeconds.toFixed(2)} s`;if(!mode.selection.length)this.title='Frère Jacques · synthetic guide';
+  }
+  songConfig(){return {durationSeconds:this.durationSeconds,title:this.title};}
   async loadAssets(){
     try{
       const response=await fetch('/audio/manifest.json');if(!response.ok)throw new Error('Manifest unavailable');
       const manifest=await response.json();
       for(const filename of manifest.availableFiles||[]){
-        try{const name=audioName(filename);const r=await fetch(`/audio/${filename}`);if(!r.ok)throw new Error('Declared file unavailable');await this.decode(name,await r.arrayBuffer());this.assetReport.push(`${filename}: loaded`);}
+        try{const name=audioName(filename);const r=await fetch(`/audio/${filename}`);if(!r.ok)throw new Error('Declared file unavailable');await this.decode(name,await r.arrayBuffer());this.title=filename;this.assetReport.push(`${filename}: loaded`);}
         catch(e){this.assetReport.push(`${filename}: ${e.message}`);}
       }
     }catch(e){this.assetReport.push(`Local manifest: ${e.message}`);}
@@ -38,23 +43,28 @@ export class VocalMixer {
   }
   async loadFiles(files){
     await this.enable();const reports=[];
-    for(const file of files){let name;try{validateFile(file,'.wav');name=audioName(file.name);await withObjectURL(file,async url=>{const r=await fetch(url);await this.decode(name,await r.arrayBuffer());});reports.push(`${file.name}: valid 32 s WAV loaded locally`);}
+    for(const file of files){let name;try{validateFile(file,'.wav');name=audioName(file.name);await withObjectURL(file,async url=>{const r=await fetch(url);await this.decode(name,await r.arrayBuffer());});this.title=file.name;reports.push(`${file.name}: ${this.buffers.get(name).duration.toFixed(3)} s WAV · plays once`);}
       catch(e){if(name)this.buffers.delete(name);reports.push(`${file.name}: rejected — ${e.message}`);}}
     this.reset();this.selectMode();this.assetReport=reports;return reports;
   }
   setVolume(value){this.volume=value;if(this.master)this.master.gain.setTargetAtTime(this.enabled?value:0,this.ctx.currentTime,.03);}
-  reset(){for(const t of this.tracks.values())this.fadeStop(t);this.tracks.clear();this.voices.forEach(v=>{v.lastNote=-1;v.noteGain.gain.setTargetAtTime(0,this.ctx.currentTime,.01);});}
-  fadeStop(t){const now=this.ctx.currentTime;t.gain.gain.cancelScheduledValues(now);t.gain.gain.setTargetAtTime(0,now,.015);try{t.source.stop(now+.08);}catch{}}
+  reset(clearCompleted=true){if(clearCompleted)this.completed.clear();for(const t of this.tracks.values())this.fadeStop(t);this.tracks.clear();this.voices.forEach(v=>{v.lastNote=-1;v.noteGain.gain.setTargetAtTime(0,this.ctx.currentTime,.01);});}
+  fadeStop(t){t.stopping=true;const now=this.ctx.currentTime;t.gain.gain.cancelScheduledValues(now);t.gain.gain.setTargetAtTime(0,now,.015);try{t.source.stop(now+.08);}catch{}}
   playAsset(name,command){
-    const now=this.ctx.currentTime,desired=command.position%32;
+    if(this.completed.has(name))return;
+    const now=this.ctx.currentTime,buffer=this.buffers.get(name),desired=command.position;
+    if(desired>=buffer.duration){this.completed.add(name);const old=this.tracks.get(name);if(old){this.fadeStop(old);this.tracks.delete(name);}return;}
     let t=this.tracks.get(name);
-    if(t){const actual=(t.position+(now-t.at)*t.rate)%32;const error=((desired-actual+48)%32)-16;
+    if(t){
+      const actual=t.position+(now-t.at)*t.rate,error=desired-actual;
       if(Math.abs(error)<.18){const rate=1+Math.max(-.025,Math.min(.025,(command.rate-1)+error*.15));t.position=actual;t.at=now;t.rate=rate;t.source.playbackRate.setTargetAtTime(rate,now,.1);return;}
       this.fadeStop(t);
     }
-    const source=this.ctx.createBufferSource(),gain=this.ctx.createGain();source.buffer=this.buffers.get(name);source.loop=true;source.loopStart=0;source.loopEnd=32;source.connect(gain);gain.connect(this.master);gain.gain.value=0;gain.gain.setTargetAtTime(1,now+.025,.02);
-    // Decoded buffers receive a 4 ms edge fade to suppress loop discontinuities.
-    source.start(now+.025,(desired+.025)%32);this.tracks.set(name,{source,gain,position:(desired+.025)%32,at:now+.025,rate:1});
+    const lead=Math.min(.025,(buffer.duration-desired)/4);
+    const source=this.ctx.createBufferSource(),gain=this.ctx.createGain();source.buffer=buffer;source.loop=false;source.connect(gain);gain.connect(this.master);gain.gain.value=0;gain.gain.setTargetAtTime(1,now+lead,.02);
+    t={source,gain,position:desired+lead,at:now+lead,rate:1,stopping:false};
+    source.onended=()=>{if(!t.stopping)this.completed.add(name);if(this.tracks.get(name)===t)this.tracks.delete(name);};
+    source.start(now+lead,desired+lead);this.tracks.set(name,t);
   }
   async toggle() {
     const enabled=!this.enabled;
@@ -83,9 +93,11 @@ export class VocalMixer {
     if (!this.ctx) return;
     const time = this.ctx.currentTime;
     this.setVolume(this.volume);
-    const fresh = freshStates(states,performance.now());
+    const fresh = this.transportPaused?[]:freshStates(states,performance.now());
     const liveIds = new Set(fresh.map(s=>s.id));
-    const commands=audioCommands(states,this.selection||[]);
+    const requested=this.transportPaused?[]:audioCommands(states,this.selection||[],performance.now());
+    for(const command of requested)if(command.position>=this.buffers.get(command.name).duration)this.completed.add(command.name);
+    const commands=requested.filter(c=>!this.completed.has(c.name));
     const activeNames=new Set(commands.map(c=>c.name));
     for(const [name,track] of this.tracks)if(!activeNames.has(name)){this.fadeStop(track);this.tracks.delete(name);}
     this.commands=commands;
@@ -93,7 +105,7 @@ export class VocalMixer {
     states.forEach((state, id) => {
       if (!state) {this.voices[id].output.gain.setTargetAtTime(0,time,.02);return;}
       const voice = this.voices[id];
-      voice.output.gain.setTargetAtTime(this.enabled && !this.selection?.length && liveIds.has(id) ? 1 : 0,time,.03);
+      voice.output.gain.setTargetAtTime(this.enabled && !this.selection?.length && liveIds.has(id) && !state.finished ? 1 : 0,time,.03);
       const { pitch, vowel, volume, noteIndex } = state.voice;
       voice.saw.frequency.setTargetAtTime(Math.max(40, pitch || 220), time, .025);
       const formants = FORMANTS[vowel] || FORMANTS.a;

@@ -1,11 +1,12 @@
+import {performanceSettings} from './performance-settings.js';
 import { ShowClock, RATE, circularMean, circularMedian, phaseDifference, MAX_OBSERVATION_AGE_MS } from './clock.js';
 import { PeerTime } from './peer-time.js';
 import { Coordination } from './coordination.js';
-import { decidePerformance } from './score.js';
+import { decidePerformance, songConfig } from './score.js';
 /** The same autonomous peer core runs in each Worker and deterministic network tests. */
 export class PeerAgent {
   constructor(id, incarnation, send) {
-    Object.assign(this, { id, incarnation, sendRaw: send, clock: new ShowClock(), coordination: new Coordination(id), links: new Map(), peers: new Map(), incarnations: new Map(), retired: new Set(), pending: new Map(), lastTx: -Infinity, serial: 0, now: 0, cueAt: null, received: 0, dropped: 0 });
+    Object.assign(this, { id, incarnation, sendRaw: send, clock: new ShowClock(), coordination: new Coordination(id), links: new Map(), peers: new Map(), incarnations: new Map(), retired: new Set(), pending: new Map(), score: songConfig(), performance: performanceSettings(), lastTx: -Infinity, serial: 0, now: 0, cueAt: null, received: 0, dropped: 0 });
   }
   send(message) { this.sendRaw({ ...message, id: this.id, incarnation: this.incarnation }); }
   originate(now, countdown = 3000) { if (!this.clock.running && this.cueAt === null) this.cueAt = now + countdown; }
@@ -66,8 +67,10 @@ export class PeerAgent {
       }
     }
     const variation=this.coordination.update(beat),median=circularMedian(beats);
-    return {type:'state',id:this.id,beat,...decidePerformance(this.id,beat,variation),playing:this.clock.running&&!this.clock.paused,joining:!this.clock.running,peers:observations.map(p=>p.id),received:this.received,dropped:this.dropped,adjustment:this.clock.adjustment,phaseOffset:median===null?null:phaseDifference(beat,median),proposal:this.coordination.status,delayEstimates:[...this.links].filter(([,l])=>l.fresh(now)).map(([id,l])=>({id,rtt:l.best.rtt,uncertainty:l.best.rtt/2})),rate:RATE+this.clock.adjustment/1000};
+    return {type:'state',id:this.id,beat,...decidePerformance(this.id,beat,variation,this.score,{...this.performance,active:this.clock.running}),playing:this.clock.running&&!this.clock.paused,joining:!this.clock.running,peers:observations.map(p=>p.id),received:this.received,dropped:this.dropped,adjustment:this.clock.adjustment,phaseOffset:median===null?null:phaseDifference(beat,median),proposal:this.coordination.status,delayEstimates:[...this.links].filter(([,l])=>l.fresh(now)).map(([id,l])=>({id,rtt:l.best.rtt,uncertainty:l.best.rtt/2})),rate:RATE+this.clock.adjustment/1000};
   }
+  configurePerformance(settings) {this.performance=performanceSettings({...this.performance,...settings});}
+  configureSong(config) { this.score=songConfig(config); }
   propose() { if (!this.clock.running) return; const p=this.coordination.propose(this.clock.beat);this.coordination.receive(p,this.clock.beat,m=>this.send(m));this.send(p); }
   isolate() { this.peers.clear(); }
 }

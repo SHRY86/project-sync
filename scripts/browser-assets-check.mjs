@@ -22,8 +22,8 @@ try{
  await page.setInputFiles('#animationFile',join(directory,'invalid.vrma'));await page.waitForFunction(()=>document.getElementById('importReport').textContent.includes('Procedural dance'));
  await page.reload();await page.click('#startButton');await page.setInputFiles('#audioFiles',join(directory,'concert-full.wav'));await page.waitForFunction(()=>window.audioEvidence.active===1);
  await page.click('#kill0');await page.waitForTimeout(600);assert.ok(await page.evaluate(()=>window.audioEvidence.active>=1));assert.match(await page.textContent('#assetStatus'),/median/);
- writeFileSync(join(directory,'concert-full.wav'),wavBytes(new Float32Array(16000)));
+ writeFileSync(join(directory,'concert-full.wav'),'Invalid WAV data');
  await page.setInputFiles('#audioFiles',join(directory,'concert-full.wav'));await page.waitForFunction(()=>document.getElementById('importReport').textContent.includes('rejected'));
  await page.waitForFunction(()=>document.getElementById('assetStatus').textContent.includes('not VOCALOID'));
- assert.deepEqual(errors,[]);console.log('PASS: runtime original WAVs, exclusive stems, real buffer playback, dead/rejoined stem lifecycle, living-agent mix after NOVA death, invalid duration/VRM/VRMA fallbacks; valid external VRM/VRMA files unavailable.');
+ assert.deepEqual(errors,[]);console.log('PASS: runtime original WAVs, exclusive stems, real buffer playback, dead/rejoined stem lifecycle, living-agent mix after NOVA death, invalid WAV/VRM/VRMA fallbacks; valid external VRM/VRMA files unavailable.');
 }catch(error){console.log('Browser asset diagnostic',errors,await page.evaluate(()=>({evidence:window.audioEvidence,status:document.getElementById('assetStatus').textContent,agents:document.getElementById('agents').textContent,report:document.getElementById('importReport').textContent})));throw error;}finally{await browser.close();}

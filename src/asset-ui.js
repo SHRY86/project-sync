@@ -1,8 +1,8 @@
 const $=id=>document.getElementById(id);
 export class AssetUI {
-  constructor(audio,getStage){
+  constructor(audio,getStage,onSong){
     const report=message=>{$('importReport').textContent=message;};
-    $('audioFiles').onchange=async event=>{try{const files=[...event.target.files];report('Decoding local WAVs…');report((await audio.loadFiles(files)).join('\n'));}catch(e){report(`Audio import failed: ${e.message}`);}event.target.value='';};
+    $('audioFiles').onchange=async event=>{try{const files=[...event.target.files];report('Decoding local WAVs…');const messages=await audio.loadFiles(files);onSong?.(audio.songConfig());report(messages.join('\n')+'\nRestart to play from the beginning if a concert is already running.');}catch(e){report(`Audio import failed: ${e.message}`);}event.target.value='';};
     for(const kind of ['model','animation'])$(`${kind}File`).onchange=async event=>{
       const file=event.target.files[0],id=Number($('assetPerformer').value),stage=getStage();
       if(!file)return;if(!stage){report('3D renderer unavailable; audio and agents still work.');return;}

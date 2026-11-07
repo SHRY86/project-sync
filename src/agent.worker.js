@@ -22,6 +22,8 @@ onmessage=({data:m})=>{
     },33);
   }
   if(!agent)return;
+  if(m.type==='performance')agent.configurePerformance(m.settings);
+  if(m.type==='song')agent.configureSong(m.config);
   if(m.type==='startCue')agent.originate(oscillator.now());
   if(m.type==='network'){network={...network,...m};if(network.isolated){agent.isolate();epoch++;}}
   if(m.type==='oscillator')oscillator.configure(m.profile,m.scale);

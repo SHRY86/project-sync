@@ -4,8 +4,7 @@
     4,
     4
   ],
-  "beatsPerLoop": 64,
-  "durationSeconds": 32,
+  "durationSeconds": null,
   "startOffsetSeconds": 0,
   "roles": {
     "nova": "nova.wav",
@@ -19,5 +18,7 @@
   },
   "selection": "all three aligned agent stems, else instrumental + vocals, else full mix, else explicitly synthetic",
   "availableFiles": [],
-  "note": "Declare only files actually present to avoid missing-file fetches. Runtime file picker needs no manifest edits."
+  "note": "Any positive decoded WAV duration is accepted. Unknown WAV filenames are full songs. Aligned stems/pairs must agree within 60 ms. Declare only files present; runtime file picker needs no manifest edit.",
+  "phaseWrapBeats": 64,
+  "loop": false
 }

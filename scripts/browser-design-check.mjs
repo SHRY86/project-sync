@@ -9,6 +9,6 @@ try{
   if(width===1280)await page.screenshot({path:'browser-preview.png',fullPage:true});
  }
  await page.setViewportSize({width:1280,height:720});await page.evaluate(()=>document.activeElement.blur());await page.keyboard.press('Space');assert.equal(await page.textContent('#pauseButton'),'Resume');await page.keyboard.press('Space');assert.equal(await page.textContent('#pauseButton'),'Pause');
- await page.keyboard.press('d');assert.ok(await page.locator('#demoGuide').isVisible());await page.click('#nextDemo');await page.click('#nextDemo');await page.waitForFunction(()=>document.getElementById('state1').textContent==='ISOLATED');await page.keyboard.press('Escape');assert.ok(await page.locator('#demoGuide').isHidden());
+ await page.keyboard.press('d');assert.ok(await page.locator('#demoGuide').isVisible());await page.click('#nextDemo');await page.click('#nextDemo');await page.waitForFunction(()=>document.getElementById('latency').value==='150'&&document.getElementById('loss').value==='30');await page.keyboard.press('Escape');assert.ok(await page.locator('#demoGuide').isHidden());
  assert.ok((await page.getAttribute('#phaseLine','d')).length>0);assert.deepEqual(errors,[]);console.log('PASS: 1280×720, 1440×900, mobile layout, graph, guided demo and keyboard transport.');
 }finally{await browser.close();}

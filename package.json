@@ -8,7 +8,7 @@
     "test": "node --test",
     "preview": "vite preview --host 127.0.0.1",
     "report:clock": "node scripts/clock-report.mjs",
-    "test:browser": "node scripts/browser-check.mjs && node scripts/browser-clock-check.mjs && node scripts/browser-assets-check.mjs && node scripts/browser-design-check.mjs",
+    "test:browser": "node scripts/browser-check.mjs && node scripts/browser-clock-check.mjs && node scripts/browser-assets-check.mjs && node scripts/browser-design-check.mjs && node scripts/browser-isolation-check.mjs && node scripts/browser-song-check.mjs && node scripts/browser-lighting-check.mjs",
     "quality": "npm test && npm run build"
   },
   "dependencies": {

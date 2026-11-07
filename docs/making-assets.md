@@ -8,27 +8,27 @@ Run `node scripts/make-demo-audio.mjs`. It creates `.demo-audio/nova.wav`, `luna
 
 ## Understand the target
 
-A beat is a quarter note. At 120 beats/minute, each beat takes 0.5 seconds. A 4/4 bar has four beats, taking 2 seconds. **16 bars = 64 beats = 32 seconds.** A DAW is an audio editor with tracks on a timeline. A stem is one exported part, including silence where that part is absent. All exports must cover exactly the same 0–32-second range. Do not export just the vocal region starting later in the song.
+A beat is a quarter note. At 120 beats/minute, each beat takes 0.5 seconds. A 4/4 bar has four beats, taking 2 seconds. For the supplied Frère Jacques: **8 bars = 32 beats = 16 seconds.** Longer or shorter songs are also accepted. For reference, 16 bars would be 32 seconds. A DAW is an audio editor with tracks on a timeline. A stem is one exported part, including silence where that part is absent. All stems must cover the same start-to-end range (0–16 seconds for this recording). Do not export just the vocal region starting later in the song.
 
-Use original notes and lyrics. A simple plan: bars 1–2 intro, bars 3–8 verse, bars 9–14 chorus, bars 15–16 ending. These match the agent score sections. Begin with a four-note melody, one note per beat; duplicate it and change the final note. Add a bass note on each bar and a soft drum on beats 1 and 3. Keep levels below clipping and add short fades at the loop boundary. Avoid reverb tails beyond 32 seconds.
+Use original notes and lyrics. For a gentle round, use four equally sized phrases: opening, melody, bells and closing. The agent choreography scales these sections to decoded duration and finishes with a bow. Begin with a four-note melody, one note per beat; duplicate it and change the final note. Add a bass note on each bar and a soft drum on beats 1 and 3. Keep levels below clipping and add short beginning/end fades. Preserve intentional tails within the chosen common stem range; playback does not loop.
 
 ## GarageBand on a Mac: local workflow
 
 1. Open GarageBand, make an empty project, and add a software-instrument track. Set the transport tempo to **120** and time signature **4/4**. Turn the metronome on while editing, not in exported audio.
-2. Start your first region at **bar 1 beat 1**. Create 16 bars of music, ending at **bar 17 beat 1**. The bar-17 marker is the endpoint, not a seventeenth bar. Use the piano roll or musical typing to enter your own notes.
+2. Start your first region at **bar 1 beat 1**. For a 16-second version, create 8 bars ending at **bar 9 beat 1**. The bar-9 marker is the endpoint, not a ninth bar. Use another endpoint for a different-length song. Use the piano roll or musical typing to enter your own notes.
 3. Put the lead/vocal part on a track named NOVA, harmony on LUNA, and bass/drums/backing on ECHO. Each stem can contain several tracks if you solo that group together.
-4. Turn on Cycle and set the yellow range from bar 1 to bar 17. Use **Share → Export Song to Disk**, choose uncompressed WAVE, and export the cycle range. Menu wording varies by version. Solo NOVA, export `nova.wav`; solo LUNA, export `luna.wav`; solo ECHO, export `echo.wav`. Keep the cycle range unchanged for all three. Turn all parts on and export `concert-full.wav`.
-5. Listen to the full mix and each solo stem. Import the files into this demo; it rejects duration outside **31.940–32.060 seconds**. If GarageBand adds tail audio, reopen the WAV in an audio editor and trim to exactly 32 seconds without trimming its initial silence. The browser adds only a 4 ms edge fade; it cannot repair a wrong arrangement or offset.
+4. Turn on Cycle and set the yellow range from bar 1 to your chosen endpoint (bar 9 for 16 seconds). Use **Share → Export Song to Disk**, choose uncompressed WAVE, and export the cycle range. Menu wording varies by version. Solo NOVA, export `nova.wav`; solo LUNA, export `luna.wav`; solo ECHO, export `echo.wav`. Keep the cycle range unchanged for all three. Turn all parts on and export `concert-full.wav`.
+5. Listen to the full mix and each solo stem. Import the files into this demo; it accepts any positive decoded duration. Stem/pair lengths must agree within 60 ms. If GarageBand adds tail audio, reopen the WAV in an audio editor and trim all stems to the same intended end without trimming its initial silence. The browser adds only a 4 ms edge fade; it cannot repair a wrong arrangement or offset.
 
 Search “Export songs to disk” in the [official GarageBand user guide](https://support.apple.com/guide/garageband/welcome/mac). Exact desktop menu interactions above remain manually unverified here.
 
 ## BandLab alternative
 
-BandLab is an optional online authoring service and generally uses an account/cloud project; **PROJECT SYNC itself does not use it**. If you want an entirely local process, use GarageBand instead. In a new Studio song set 120 BPM and 4/4, arrange 16 bars from time zero, then download the individual tracks and mix. Inspect downloaded duration and initial silence; downloads may need a common 32-second trim. Rename the three aligned groups to the expected names. The [official download guide](https://help.bandlab.com/hc/en-us/articles/115002959774-Downloading-Mixdowns-and-Tracks) describes track/mix export. Availability and file formats depend on the authoring platform/version; do not rename compressed audio to pretend it is WAV.
+BandLab is an optional online authoring service and generally uses an account/cloud project; **PROJECT SYNC itself does not use it**. If you want an entirely local process, use GarageBand instead. In a new Studio song set 120 BPM and 4/4, arrange your desired song length from time zero (8 bars for 16 seconds), then download the individual tracks and mix. Inspect downloaded duration and initial silence; downloads may need a common start/end range. Rename the three aligned groups to the expected names. The [official download guide](https://help.bandlab.com/hc/en-us/articles/115002959774-Downloading-Mixdowns-and-Tracks) describes track/mix export. Availability and file formats depend on the authoring platform/version; do not rename compressed audio to pretend it is WAV.
 
 ## Add an actual sung melody
 
-A speech engine is not automatically a singing engine. Use a piano-roll singing feature and an authorized voicebank, then bring its rendered WAV into the DAW. Set 120 BPM, enter a short original melody, attach a syllable to each note, render, and align the first intended note with the DAW grid. Export the **whole 32-second range** from the DAW afterward, including rests and initial silence.
+A speech engine is not automatically a singing engine. Use a piano-roll singing feature and an authorized voicebank, then bring its rendered WAV into the DAW. Set 120 BPM, enter a short original melody, attach a syllable to each note, render, and align the first intended note with the DAW grid. Export the **whole start-to-end song range** from the DAW afterward, including rests and initial silence.
 
 - **VOICEVOX:** the official application documents prototype song and humming modes. Use its song piano roll, add notes and supported lyrics, select a compatible singer/style and render. Japanese syllable constraints can matter; test a short phrase first. Voice-specific attribution/use conditions still apply. Follow the [official song instructions](https://voicevox.hiroshiba.jp/how_to_use/).
 - **Synthesizer V Studio Basic:** use it if you already have a legitimate Basic installer and compatible licensed/Lite database. Enter notes and syllables, render a vocal WAV, then align it in the DAW. Do not assume Basic, Lite banks or a permanent free download are currently available to everyone: the [official installer page](https://auth.dreamtonics.com/store/download) presents product-dependent access. A trial is not a guaranteed free submission licence; check the bank's terms separately. This route was not run here.
@@ -50,7 +50,7 @@ A realistic path is **licensed Mixamo FBX → Blender → retarget/bake onto you
 
 For **MMD/VMD**, use a compatible MMD importer in Blender, retain required model/motion credits, retarget the imported motion to the VRM armature, bake, and use the same VRMA export. **Both retargeting paths, specific importer compatibility, root-motion cleanup and export settings are unverified in this environment.** Budget substantial time; use procedural choreography if conversion is troublesome. A different practical route is authoring a simple new action directly on the VRM rig in Blender and exporting that.
 
-At 30 fps, a 32-second loop spans 960 frames (one loop endpoint should match the start). The app samples clip time = `(agentBeat modulo 64) × 0.5 seconds`, wrapping again at the clip's own duration if shorter. It does not time-stretch arbitrary motion to match music. Retiming to 120 BPM is your authoring responsibility. Prefer in-place motion; large root translations can move performers outside their stage zones. Load a VRM first, then select that performer's `.vrma`. Missing/invalid motion uses procedural dance. No demonstration clip is fabricated or bundled.
+At 30 fps, a 16-second dance spans 480 frames. The app samples clip time = `agentBeat × 0.5 seconds`, clamped at the clip end. The clip holds its final pose rather than looping. Use a VRM 1.0 armature for the Blender add-on's documented VRMA export path. It does not time-stretch arbitrary motion to match music. Retiming to 120 BPM is your authoring responsibility. Prefer in-place motion; large root translations can move performers outside their stage zones. Load a VRM first, then select that performer's `.vrma`. Missing/invalid motion uses procedural dance. No demonstration clip is fabricated or bundled.
 
 ## File preparation and static manifests
 
@@ -68,13 +68,15 @@ Before sharing, record the source, creator, licence text, required credit, redis
 
 | Symptom | Check |
 |---|---|
-| Rejected WAV | Confirm real WAV encoding and 32 s ±60 ms duration, not a renamed MP3. |
+| Rejected WAV | Confirm real WAV encoding and a positive finite duration, not a renamed MP3. |
 | Correct duration, wrong groove | Confirm 120 BPM / 4/4, no time-stretched import or pickup beat before bar 1. |
 | Parts enter at different times | Export every stem from time zero; retain intentional leading silence; align all DAW regions. |
 | Synthetic sound despite files | Read the mode/rejection report; complete the three-stem set or a supported mix alternative. |
 | Doubled/too loud sound | The app chooses one mode; check your DAW or another browser tab is not also playing. |
-| Click at loop | Trim tails, match boundary waveform/zero crossings, add fades; ensure a seamless arrangement. |
+| Click at start/end | Add short fades and check the original waveform; playback is one-shot. |
 | Model remains procedural | Use exported VRM, not `.vroid`/FBX; embed resources; read the per-performer import error. |
 | VRMA loads but nothing moves | Assign a VRM first, verify humanoid animation metadata, nonempty clip and retargeted tracks. |
 | Pose moves offstage | Remove/bake unwanted root motion and fix rest pose in the authoring tool. |
 | No sound | Press Start/Enable Audio, unmute the tab and OS output, raise master volume. |
+
+Any full-song WAV filename is accepted, including `brother_john.wav`; no rename is required. Loading a song into an already running concert changes its configuration without resetting peer time. Press Restart explicitly to play it from the beginning. The synthetic guide is a single 16-second gentle Frère Jacques arrangement; the original demo-audio generator still produces optional 32-second instrumental test stems, which now also play once.

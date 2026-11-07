@@ -8,23 +8,21 @@ Show the stage. “A virtual-idol concert is a group goal: stay in rhythm and ma
 
 Use a simple diagram: NOVA ↔ LUNA ↔ ECHO, plus NOVA ↔ ECHO; arrows to shared display/audio output, with no return timing arrow. “Each relative timer has a private seeded offset and default synthetic rate error. Four-timestamp ping/pong estimates relative offset/delay. Circular phase error changes speed within bounded limits, never jumps a performing clock backwards. No leader is elected.” Acknowledge the selected peer's one-time relative countdown as the explicit centralized start moment.
 
-## 0:55–1:55 · Slide 3 — Live failure story (60 seconds)
+## 0:55–1:55 · Slide 3 — Network stress, recovery, and a one-shot song
 
-Use **Demo script**, advance manually, and keep the graph visible. Exact click path:
+Main click path:
 
-1. Choose initiator, **Start Concert**. Wait ~3 seconds for the relative cue.
-2. **LUNA → Isolate**. Wait 8–10 seconds: its beat/audio/dance continue while disagreement grows.
-3. Scroll the right panel if needed: **loss 30%, latency 150 ms, jitter 60 ms**. Show receive/drop counters and RTT.
-4. **NOVA → Kill**. Point out the other Workers still move and output sound. **NOVA → Rejoin**. No phase is passed from the main thread.
-5. **Propose encore** with LUNA still isolated. Wait for canonical fallback after the local deadline.
-6. **Restore communication**. No clock reset: watch the curve fall and a sustained recovery time appear.
-7. **Propose encore** again. All three can approve the future gold-light variation. Show its locally decided state; do not claim atomic consensus.
+1. Open **Load local assets**, select `brother_john.wav` (16 seconds, no rename), then **Start Concert**. The selected peer gossips the initial countdown; all peers own the subsequent clocks.
+2. Click **Stress the whole P2P network** (150 ms latency, ±60 ms jitter, 30% loss). Watch the active-group graph and all pair readings.
+3. Increase delay/loss if useful, then **Restore communication**. No beat reset is sent. Explain the measured estimator error and sustained recovery threshold.
+4. At 16 seconds of song position, the music stops and dancers bow. Clocks remain active so the network experiment can continue without looping or restarting the recording.
+5. Optionally test isolation of any dancer, kill/rejoin and unanimous colour approval afterward. The all-performer holdover reading remains visible separately from healthy peer-group disagreement.
 
-If a result takes longer due to jitter, pause narration and point to the live estimates. Do not announce convergence before the display shows it. Rejoin acquisition and full-group reconnection are different measurements. The guided panel describes each action but does not auto-resync anything.
+The guide advances manually through whole-network stress and recovery. Do not claim identical isolation slopes: the three synthetic rate errors differ. Do not announce convergence before the graph/timer shows it, or call a deliberate Restart reconnection recovery.
 
 ## 1:55–2:30 · Slide 4 — “Claims backed by evidence”
 
-Open **Evidence**. Real: independent Worker state and artistic decisions, real asynchronous messages and counted drops, actual terminate/rejoin, peer coupling and approval protocol. Simulated: oscillator error and same-computer receiver faults. Not claimed: cross-machine networking, symmetric-path guarantees, partition-safe consensus, authentication, exact lyrical lip-sync or distributed-speaker sample alignment.
+Open **Technical notes** (the separate claims-versus-evidence Markdown file). Real: independent Worker state and artistic decisions, real asynchronous messages and counted drops, actual terminate/rejoin, peer coupling and approval protocol. Simulated: oscillator error and same-computer receiver faults. Not claimed: cross-machine networking, symmetric-path guarantees, partition-safe consensus, authentication, exact lyrical lip-sync or distributed-speaker sample alignment.
 
 Use `docs/clock-measurements.md` for seeded model max/mean/p95. Model truth is known only by the test harness; browser observation tables include unmeasured queueing delay. Example measured case: 60-second isolation at demo drift reached about .76 beats and crossed below .08 beats ~3.39 seconds after reconnect in the checked seed. Read the regenerated table before presenting; use its numbers, not an assumed live result.
 
@@ -41,3 +39,5 @@ Use `docs/clock-measurements.md` for seeded model max/mean/p95. Model truth is k
 - **Convergence slow:** restore communication, select the normal demo profile at 1× and wait. Restart only if deliberately starting a new experiment; label it as a reset/new cue, never as proof of reconnection recovery.
 - **All Workers killed:** press Restart for a new session/cue. Empty peers cannot invent the elapsed state of an extinct show.
 - **Internet unavailable:** run the already-built local bundle with installed dependencies. If setup was never installed, use a prepared machine; do not promise npm can install offline.
+
+Use the copy-ready overview and personal fan story in `docs/project-overview.md` and `docs/submission-story.md`. Describe the Vancouver Wi-Fi explanation as an unconfirmed community account, not verified production forensics. The stage look is inspired by the reference palette/typography, without bundling its copyrighted illustration.

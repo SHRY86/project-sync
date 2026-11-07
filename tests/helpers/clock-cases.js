@@ -4,6 +4,8 @@ export const clockCases=[0,50,150,500].flatMap(latency=>[
 ]);
 clockCases.push(
  {name:'100% loss after start',latency:50,blackout:true},
+ {name:'isolate NOVA / reconnect',isolateId:0,latency:150,jitter:60,loss:.3,isolation:true},
+ {name:'isolate ECHO / reconnect',isolateId:2,latency:150,jitter:60,loss:.3,isolation:true},
  {name:'long isolation / reconnect',latency:150,jitter:60,loss:.3,isolation:true},
  {name:'kill / peer-only rejoin',latency:150,jitter:60,loss:.3,kill:true},
  {name:'kill LUNA / rejoin',latency:150,jitter:60,loss:.3,kill:true,killId:1},

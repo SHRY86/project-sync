@@ -1,10 +1,12 @@
+import {performanceSettings} from './performance-settings.js';
+import { songConfig } from './score.js';
 /** Spectator lifecycle/configuration only. No musical timing enters a Worker here. */
 export class AgentFleet {
   constructor(onState) {
     this.onState=onState;
     this.workers=Array(3).fill(null);this.states=Array(3).fill(null);
     this.network={lossProbability:0,latency:0,jitter:0};this.isolated=[false,false,false];
-    this.profile='demo';this.scale=1;this.initiator=0;this.paused=false;
+    this.performance=performanceSettings();this.score=songConfig();this.profile='demo';this.scale=1;this.initiator=0;this.paused=false;
     this.recoveries=Array(3).fill(null);this.counters=Array.from({length:3},()=>({received:0,dropped:0}));
     this.totalReceived=0;this.totalDropped=0;
   }
@@ -29,6 +31,8 @@ export class AgentFleet {
     };
     worker.onerror=e=>{this.error=`Agent ${id}: ${e.message}`;};
     worker.postMessage({type:'init',id,session:this.session,incarnation:crypto.randomUUID()});
+    worker.postMessage({type:'song',config:this.score});
+    worker.postMessage({type:'performance',settings:this.performance});
     worker.postMessage({type:'oscillator',profile:this.profile,scale:this.scale});
     worker.postMessage({type:'network',...this.network,isolated:this.isolated[id]});
   }
@@ -46,6 +50,8 @@ export class AgentFleet {
     if(!this.session||this.workers[id])return;
     this.recoveries[id]={started:performance.now(),elapsed:null};this.spawn(id);
   }
+  configurePerformance(settings){this.performance=performanceSettings({...this.performance,...settings});this.workers.forEach(w=>w?.postMessage({type:'performance',settings:this.performance}));}
+  configureSong(config){this.score=songConfig(config);this.workers.forEach(w=>w?.postMessage({type:'song',config:this.score}));}
   applyNetwork(){this.workers.forEach((w,id)=>w?.postMessage({type:'network',...this.network,isolated:this.isolated[id]}));}
   applyOscillators(){this.workers.forEach(w=>w?.postMessage({type:'oscillator',profile:this.profile,scale:this.scale}));}
   pause(){this.paused=!this.paused;this.workers.forEach(w=>w?.postMessage({type:this.paused?'pause':'resume'}));}
