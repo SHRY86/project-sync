@@ -20,12 +20,16 @@ try{
  const packets=await page.evaluate(()=>window.observed.states.reduce((a,s)=>a+s.dropped,0));await page.waitForTimeout(500);
  assert.ok(await page.evaluate(n=>window.observed.states.reduce((a,s)=>a+s.dropped,0)>n,packets));
  await page.click('#restoreButton');await page.waitForFunction(()=>window.observed.states.every(s=>s.peers.length===2));
+ await page.click('#kill0');await page.waitForTimeout(300);const survivor=await page.evaluate(()=>window.observed.states[1].beat);await page.click('#proposalButton');
+ await page.waitForFunction(()=>window.observed.states.slice(1).every(s=>s.proposal.includes('canonical fallback')),null,{timeout:12000});
+ assert.ok(await page.evaluate(b=>window.observed.states[1].beat>b+4,survivor));
+ await page.click('#kill0');await page.waitForFunction(()=>window.observed.states[0].playing&&window.observed.states[0].peers.length===2,null,{timeout:10000});
  await page.click('#proposalButton');await page.waitForFunction(()=>window.observed.states.every(s=>s.proposal.includes('Approved')),null,{timeout:12000});
  assert.ok(await page.evaluate(()=>window.observed.states.every(s=>s.proposal.includes('Approved'))));
  await page.click('#pauseButton');await page.waitForTimeout(200);const paused=await page.evaluate(()=>window.observed.states[0].beat);await page.waitForTimeout(500);assert.equal(await page.evaluate(()=>window.observed.states[0].beat),paused);
  await page.click('#pauseButton');await page.waitForTimeout(500);assert.ok(await page.evaluate(b=>window.observed.states[0].beat>b,paused));
  await page.click('#restartButton');await page.waitForTimeout(1000);await page.click('#restartButton');await page.waitForTimeout(1000);
- assert.deepEqual(await page.evaluate(()=>({created:window.observed.created,terminated:window.observed.terminated,contexts:window.observed.contexts})),{created:9,terminated:6,contexts:1});
+ assert.deepEqual(await page.evaluate(()=>({created:window.observed.created,terminated:window.observed.terminated,contexts:window.observed.contexts})),{created:10,terminated:7,contexts:1});
  await page.screenshot({path:'browser-preview.png',fullPage:true});assert.deepEqual(errors,[]);
- console.log('PASS: rendering, missing assets, real workers, isolation, 100% loss, recovery, encore, pause/resume, restart, single AudioContext; no page errors.');
+ console.log('PASS: rendering, missing assets, real workers, isolation, 100% loss, recovery, kill/rejoin, canonical fallback, encore, pause/resume, restart, single AudioContext; no page errors.');
 }finally{await browser.close();}

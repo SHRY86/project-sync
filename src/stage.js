@@ -109,7 +109,8 @@ export class ConcertStage {
   }
   render(states) {
     states.forEach((state, i) => {
-      if (!state) return;
+      this.dancers[i].root.visible=!!state&&!state.killed;
+      if (!state || state.killed) {this.spots[i].intensity=0;this.dancers[i].glow.intensity=0;return;}
       const { pose, light } = state;
       const dancer = this.dancers[i];
       dancer.root.position.x = (i - 1) * 3.5 + pose.offset;
@@ -128,7 +129,7 @@ export class ConcertStage {
       this.spots[i].intensity = 25 + light.intensity * (light.chorus ? 120 : 85);
       this.spots[i].target.position.x = (i - 1) * 3.5 + light.pan;
     });
-    const beat=states[0]?.beat||0;
+    const beat=states.find(s=>s?.playing)?.beat||0;
     if(this.cameraMode==='orbit')this.camera.position.set(Math.sin(beat*.025)*14,6,Math.cos(beat*.025)*17);
     else if(this.cameraMode==='cinematic')this.camera.position.set(Math.sin(beat*.04)*5,4.5,13);
     else this.camera.position.set(0,5.2,17);

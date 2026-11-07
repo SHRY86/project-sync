@@ -65,9 +65,9 @@ export class VocalMixer {
     this.setVolume(this.volume);
     const playing=states.some(s=>s?.playing);
     if(!playing){if(this.tracks.size)this.reset();this.voices.forEach(v=>v.output.gain.setTargetAtTime(0,time,.02));return;}
-    for(const name of this.selection||[]) {const id=['nova','luna','echo'].indexOf(name);const s=states[id<0?0:id];if(s?.playing)this.playAsset(name,s);}
+    for(const name of this.selection||[]) {const id=['nova','luna','echo'].indexOf(name);const s=id<0?states.find(s=>s?.playing&&s?.alive!==false):states[id];if(s?.playing)this.playAsset(name,s);else if(this.tracks.has(name)){this.fadeStop(this.tracks.get(name));this.tracks.delete(name);}}
     states.forEach((state, id) => {
-      if (!state) return;
+      if (!state) {this.voices[id].output.gain.setTargetAtTime(0,time,.02);return;}
       const voice = this.voices[id];
       voice.output.gain.setTargetAtTime(this.enabled && !this.selection?.length && state.playing ? 1 : 0,time,.03);
       const { pitch, vowel, volume, noteIndex } = state.voice;
