@@ -1,121 +1,37 @@
 {
-  "method": "5 seconds/case; three actual module Workers; beat 63 start; actual phase interpolated between bracketing worker state samples at each UI timestamp (gaps >150ms excluded). Unseeded browser delivery/loss, not deterministic or sample-accurate audio measurements.",
+  "method": "Actual Workers, private oscillators; seven seconds per case, selected ECHO start cue, no timestamp comparison across realms. Receipt-aligned observer estimates include unmeasured delivery queueing and are NOT simultaneous worker truth or sample-accurate audio measurements.",
   "results": [
     {
-      "config": {
-        "latency": 0,
-        "jitter": 0,
-        "lossProbability": 0
-      },
-      "worker": {
-        "max": 0.0476139861611955,
-        "mean": 0.04523029843415603,
-        "p95": 0.04654375525686305
-      },
-      "ui": {
-        "max": 0.047729991133167005,
-        "mean": 0.04524225426442554,
-        "p95": 0.04664445464074163
-      },
-      "artifact": {
-        "max": 0.00015935776127662393,
-        "mean": 0.00003512801298957887,
-        "p95": 0.00011600497197150617
-      },
-      "samples": 90
+      "latency": 0,
+      "stats": {
+        "max": 0.051612341881281054,
+        "mean": 0.027083377511440188,
+        "p95": 0.046021492870480074
+      }
     },
     {
-      "config": {
-        "latency": 50,
-        "jitter": 0,
-        "lossProbability": 0
-      },
-      "worker": {
-        "max": 0.049766515914313914,
-        "mean": 0.04557920402010277,
-        "p95": 0.04865128593502277
-      },
-      "ui": {
-        "max": 0.049804279630023984,
-        "mean": 0.04558588872559044,
-        "p95": 0.04874825359623003
-      },
-      "artifact": {
-        "max": 0.00018577177760903396,
-        "mean": 0.00003336611388264169,
-        "p95": 0.00009159424057259002
-      },
-      "samples": 96
+      "latency": 50,
+      "stats": {
+        "max": 0.05981021342344661,
+        "mean": 0.0316342438734958,
+        "p95": 0.05287177231265616
+      }
     },
     {
-      "config": {
-        "latency": 150,
-        "jitter": 0,
-        "lossProbability": 0
-      },
-      "worker": {
-        "max": 0.049766239728711525,
-        "mean": 0.045751503601648105,
-        "p95": 0.04899132380229787
-      },
-      "ui": {
-        "max": 0.04983569493667517,
-        "mean": 0.04576762848053263,
-        "p95": 0.049186357276170156
-      },
-      "artifact": {
-        "max": 0.00019503347387228587,
-        "mean": 0.000032931646886726355,
-        "p95": 0.0001101437109696235
-      },
-      "samples": 99
+      "latency": 150,
+      "stats": {
+        "max": 0.061862962966444,
+        "mean": 0.03358563196418185,
+        "p95": 0.05286190169630345
+      }
     },
     {
-      "config": {
-        "latency": 500,
-        "jitter": 0,
-        "lossProbability": 0
-      },
-      "worker": {
-        "max": 0.04966603957993243,
-        "mean": 0.04650393424880725,
-        "p95": 0.04926948492558836
-      },
-      "ui": {
-        "max": 0.049681396896744445,
-        "mean": 0.04652505461928754,
-        "p95": 0.04931480810645894
-      },
-      "artifact": {
-        "max": 0.00011753257614088852,
-        "mean": 0.000039171479604171544,
-        "p95": 0.0000996080416229006
-      },
-      "samples": 98
-    },
-    {
-      "config": {
-        "latency": 500,
-        "jitter": 400,
-        "lossProbability": 0.3,
-        "isolation": true
-      },
-      "worker": {
-        "max": 0.052743334958719856,
-        "mean": 0.049357032037913584,
-        "p95": 0.05248405997470229
-      },
-      "ui": {
-        "max": 0.05270518856809758,
-        "mean": 0.049370155555390594,
-        "p95": 0.05254261525517734
-      },
-      "artifact": {
-        "max": 0.0001947853029378166,
-        "mean": 0.00005255317954609524,
-        "p95": 0.00017072464935097287
-      },
-      "samples": 99
+      "latency": 500,
+      "stats": {
+        "max": 0.05802831761988614,
+        "mean": 0.0350737657192603,
+        "p95": 0.04665749999404056
+      }
     }
   ]
 }

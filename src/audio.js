@@ -23,7 +23,7 @@ export class VocalMixer {
   reset(){this.generation++;for(const t of this.tracks.values())this.fadeStop(t);this.tracks.clear();this.voices.forEach(v=>{v.lastNote=-1;v.noteGain.gain.setTargetAtTime(0,this.ctx.currentTime,.01);});}
   fadeStop(t){const now=this.ctx.currentTime;t.gain.gain.cancelScheduledValues(now);t.gain.gain.setTargetAtTime(0,now,.015);try{t.source.stop(now+.08);}catch{}}
   playAsset(name,state){
-    const now=this.ctx.currentTime,desired=(state.audio.position+(performance.timeOrigin+performance.now()-state.timestamp)/1000)%32;
+    const now=this.ctx.currentTime,desired=(state.audio.position+(performance.now()-state.receivedAt)/1000)%32;
     let t=this.tracks.get(name);
     if(t){const actual=(t.position+(now-t.at)*t.rate)%32;const error=((desired-actual+48)%32)-16;
       if(Math.abs(error)<.18){const rate=1+Math.max(-.025,Math.min(.025,error*.15));t.position=actual;t.at=now;t.rate=rate;t.source.playbackRate.setTargetAtTime(rate,now,.1);return;}

@@ -1,79 +1,54 @@
 import { BPM, BEATS_PER_LOOP } from './score.js';
 export const RATE = BPM / 60000;
-export const MAX_OBSERVATION_AGE_MS = 1200;
-export const SHARED_CORRECTION_LIMIT = .01;
-export const PHASE_DEADBAND = .01;
+export const MAX_OBSERVATION_AGE_MS = 1800;
 export const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
-// All windows/workers use the same epoch; performance.now() alone is realm-relative.
-export const monotonicNow = () => performance.timeOrigin + performance.now();
-export function phaseDifference(a, b) {
-  return ((a - b + BEATS_PER_LOOP / 2) % BEATS_PER_LOOP + BEATS_PER_LOOP) % BEATS_PER_LOOP - BEATS_PER_LOOP / 2;
+export const wrapBeat = b => ((b % BEATS_PER_LOOP) + BEATS_PER_LOOP) % BEATS_PER_LOOP;
+export const phaseDifference = (a, b) => wrapBeat(a - b + BEATS_PER_LOOP / 2) - BEATS_PER_LOOP / 2;
+export const PROFILES = Object.freeze({ demo: Object.freeze([-.003, .004, -.0015]), realistic: Object.freeze([-.000080, .000095, -.000035]), ideal: Object.freeze([0, 0, 0]) });
+export function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => { state = (1664525 * state + 1013904223) >>> 0; return state / 4294967296; };
 }
-export const observationTime = observation => observation.sampleAt ?? observation.sentAt;
-/** Return a rejection reason; watermarks must survive peer-cache expiry. */
-export function rejectObservation(message, now, lastSampleAt = -Infinity) {
-  const at = observationTime(message);
-  if (!Number.isFinite(message.beat) || !Number.isFinite(at) || !Number.isFinite(message.sentAt)) return 'invalid';
-  if (at > message.sentAt || message.sentAt > now || now - at >= MAX_OBSERVATION_AGE_MS) return 'stale/epoch';
-  if (at <= lastSampleAt) return 'out-of-order';
-  if (message.rate !== undefined && (!Number.isFinite(message.rate) || Math.abs(message.rate - RATE) > RATE * .1)) return 'invalid-rate';
-  return null;
+/** Only the elapsed change of this realm's relative clock is read. No epoch. */
+export class PrivateOscillator {
+  constructor(id, seed, read = () => performance.now()) {
+    this.read = read; this.lastRaw = read(); this.value = (seededRandom(seed)() * 2 - 1) * 350;
+    this.id = id; this.profile = 'demo'; this.scale = 1;
+  }
+  get error() { return PROFILES[this.profile][this.id] * this.scale; }
+  get ratio() { return 1 + this.error; }
+  now() { const raw = this.read(); this.value += Math.max(0, raw - this.lastRaw) * this.ratio; this.lastRaw = raw; return this.value; }
+  configure(profile, scale = 1) { this.now(); this.profile = Object.hasOwn(PROFILES, profile) ? profile : 'demo'; this.scale = clamp(scale, 0, 5); }
 }
-export function projectBeat(observation, timestamp) {
-  if (observation.playing === false) return observation.beat;
-  return observation.beat + (timestamp - (observation.timestamp ?? observationTime(observation))) * (observation.rate ?? RATE);
+export function circularMean(beats, anchor = 0) {
+  if (!beats.length) return anchor;
+  const angles = beats.map(b => b * Math.PI * 2 / BEATS_PER_LOOP);
+  const x = angles.reduce((s, a) => s + Math.cos(a), 0), y = angles.reduce((s, a) => s + Math.sin(a), 0);
+  if (Math.hypot(x, y) < 1e-6) return anchor; // No preferred direction at an antipodal tie.
+  return anchor + phaseDifference(Math.atan2(y, x) * BEATS_PER_LOOP / (Math.PI * 2), anchor);
 }
-const calibration = Object.freeze([-.006, .010, -.008]);
-const driftPpm = Object.freeze([-80, 95, -35]);
-const deadband = error => Math.sign(error) * Math.max(0, Math.abs(error) - PHASE_DEADBAND);
-
-/** Each worker independently evaluates the common physical clock, not a conductor. */
+export function circularMedian(beats) {
+  if (!beats.length) return null;
+  // A circular medoid supplies a wrap-safe anchor, not an elected clock authority.
+  const anchor = beats.reduce((best, b) => beats.reduce((s, a) => s + Math.abs(phaseDifference(a, b)), 0) < beats.reduce((s, a) => s + Math.abs(phaseDifference(a, best)), 0) ? b : best, beats[0]);
+  const lifted = beats.map(b => anchor + phaseDifference(b, anchor)).sort((a, b) => a - b);
+  const middle = Math.floor(lifted.length / 2);
+  return lifted.length % 2 ? lifted[middle] : (lifted[middle - 1] + lifted[middle]) / 2;
+}
+/** Leaderless proportional phase coupling; the residual is NEVER integrated. */
 export class ShowClock {
-  constructor(id, startAt) {
-    Object.assign(this, { id, startAt, correction: 0, beat: 0, last: startAt, drift: 0, stress: false, stressTarget: 0, lastStressSampleAt: -Infinity });
-  }
-  driftRate() { return this.stress ? RATE * driftPpm[this.id] / 1e6 : 0; }
-  baseAt(now) {
-    const elapsed = Math.max(0, now - this.startAt);
-    return elapsed * RATE + this.drift + 3 * (calibration[this.id] + .002 * Math.sin(elapsed / 1900 + this.id));
-  }
-  sampleAt(now) {
-    if (now < this.startAt) return 0;
-    return Math.max(this.beat, this.baseAt(now) + Math.max(0, now - this.last) * this.driftRate() + this.correction, 0);
-  }
-  tick(now, peers, isolated = false) {
-    if (!Number.isFinite(now) || now < this.last && now >= this.startAt) return this.beat;
-    const elapsedMs = Math.max(0, now - Math.max(this.last, this.startAt));
-    this.drift += elapsedMs * this.driftRate();
-    this.last = now;
-    if (now < this.startAt) return this.beat = 0;
-    const local = this.baseAt(now);
-    const errors = [];
-    if (!isolated) for (const peer of peers.values()) {
-      if (rejectObservation(peer, now) || peer.playing === false) continue;
-      // Both sides evaluated at exactly 'now', with sample epoch preserved in transit.
-      errors.push(phaseDifference(projectBeat(peer, now), local + this.correction));
-    }
-    const error = errors.length ? errors.reduce((a, b) => a + b, 0) / errors.length : 0;
-    const dt = Math.min(elapsedMs, 250); // Limit correction steps after a suspended tab.
-    const limit = this.stress ? .35 : SHARED_CORRECTION_LIMIT;
-    // Shared mode is absolute, attenuated proportional feedback anchored to baseAt.
-    // It NEVER adds error to the previous correction. Re-reading a cached packet
-    // cannot integrate the same delayed phase residual indefinitely.
-    const newestSampleAt = Math.max(-Infinity, ...[...peers.values()].map(observationTime));
-    if (this.stress && errors.length && newestSampleAt > this.lastStressSampleAt) {
-      // Stress mode may integrate oscillator error, but only once per new sample.
-      this.lastStressSampleAt = newestSampleAt;
-      this.stressTarget = clamp(this.correction + deadband(error) * .15, -limit, limit);
-    }
-    const target = this.stress
-      ? (errors.length ? this.stressTarget : this.correction)
-      : (errors.length ? clamp(deadband(error) * .2, -limit, limit) : 0);
-    const slewPerMs = this.stress ? .00012 : .000002;
-    this.correction += clamp(target - this.correction, -dt * slewPerMs, dt * slewPerMs);
-    // On leaving stress mode, slew any existing larger correction back to the
-    // shared-mode budget; do not jump the phase when the toggle changes.
-    this.beat = Math.max(this.beat, local + this.correction, 0);
+  constructor() { this.beat = 0; this.last = null; this.running = false; this.paused = false; this.adjustment = 0; this.phaseError = 0; }
+  join(beat, now) { if (this.running) return; this.beat = Math.max(0, beat); this.last = now; this.running = true; }
+  sampleAt(now) { return this.beat + (this.running && !this.paused ? Math.max(0, now - this.last) * (RATE + this.adjustment / 1000) : 0); }
+  tick(now, peerBeats = []) {
+    if (!this.running) { this.last = now; return this.beat; }
+    const dt = Math.max(0, now - this.last); this.beat = this.sampleAt(now); this.last = now;
+    if (this.paused) { this.adjustment = 0; return this.beat; }
+    this.phaseError = peerBeats.length ? phaseDifference(circularMean(peerBeats, this.beat), this.beat) : 0;
+    const residual = Math.sign(this.phaseError) * Math.max(0, Math.abs(this.phaseError) - .01);
+    // .8 / second proportional gain; ±.35 beats/sec speed change, .7 beats/sec² slew.
+    const target = clamp(residual * .8, -.35, .35);
+    this.adjustment += clamp(target - this.adjustment, -Math.min(dt, 250) * .0007, Math.min(dt, 250) * .0007);
     return this.beat;
   }
 }

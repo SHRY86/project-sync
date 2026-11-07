@@ -1,10 +1,10 @@
-import { MAX_OBSERVATION_AGE_MS, RATE, phaseDifference, projectBeat } from './clock.js';
-/** Display estimate only: never feeds back into worker timing. */
-export function measurePhase(states, now) {
-  if (states.length !== 3 || states.some(s => !s || !Number.isFinite(s.beat) || !Number.isFinite(s.timestamp) || now < s.timestamp || now - s.timestamp >= MAX_OBSERVATION_AGE_MS)) return null;
-  // Mixed pause/start observations do not describe the same running transport.
-  if (states.some(s => s.playing !== states[0].playing)) return null;
-  const beats = states.map(s => projectBeat(s, now));
-  const disagreement = Math.max(...beats.flatMap(a => beats.map(b => Math.abs(phaseDifference(a, b)))));
-  return { timestamp: now, disagreement, milliseconds: disagreement / RATE, ages: states.map(s => now - s.timestamp) };
+import { MAX_OBSERVATION_AGE_MS, RATE, phaseDifference, circularMedian } from './clock.js';
+export function freshStates(states,now=performance.now()) { return states.filter(s=>s?.alive!==false&&s?.playing&&Number.isFinite(s.receivedAt)&&now-s.receivedAt>=0&&now-s.receivedAt<MAX_OBSERVATION_AGE_MS); }
+export function presentationBeat(state,now) { return state.beat+Math.max(0,now-state.receivedAt)*(state.rate??RATE); }
+/** Receipt-aligned display estimate; worker-to-main queueing delay is unknown. */
+export function measurePhase(states,now=performance.now()) {
+  const fresh=freshStates(states,now);if(fresh.length<2)return null;
+  const beats=fresh.map(s=>presentationBeat(s,now));
+  const disagreement=Math.max(...beats.flatMap(a=>beats.map(b=>Math.abs(phaseDifference(a,b)))));
+  return {disagreement,milliseconds:disagreement/RATE,median:circularMedian(beats),count:fresh.length};
 }
