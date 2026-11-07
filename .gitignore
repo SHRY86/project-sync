@@ -10,3 +10,8 @@ browser-preview.png
 test-results/
 playwright-report/
 .demo-audio/
+
+# Local documentation; retain only the root README in version control.
+/docs/
+*.[mM][dD]
+!/README.md

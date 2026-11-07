@@ -1,5 +1,5 @@
 import {chromium} from '@playwright/test';
-import {writeFileSync} from 'node:fs';
+import {writeFileSync,mkdirSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {phaseDifference} from '../src/clock.js';
 import {statistics} from '../tests/helpers/clock-simulation.js';
@@ -24,7 +24,7 @@ try{
  }
  assert.deepEqual(errors,[]);
  const method='Actual application Workers and WebGL/UI load, private random-offset oscillators, seven seconds per case, ECHO selected for the one-time start cue. Receipt-aligned observer estimates include unmeasured delivery queueing; they are NOT simultaneous worker truth or physical audio alignment. No source-only test harness or epoch exchange is used.';
- writeFileSync('docs/browser-clock-measurements.json',JSON.stringify({method,results},null,2)+'\n');
+ mkdirSync('docs',{recursive:true});writeFileSync('docs/browser-clock-measurements.json',JSON.stringify({method,results},null,2)+'\n');
  let md=`# Browser private-clock observations\n\n${method}\n\n| Latency | Max beats / ms | Mean beats / ms | p95 beats / ms |\n|---|---|---|---|\n`;
  for(const r of results)md+=`| ${r.latency} ms | ${['max','mean','p95'].map(k=>`${r.stats[k].toFixed(4)} / ${(r.stats[k]*500).toFixed(2)}`).join(' | ')} |\n`;
  writeFileSync('docs/browser-clock-measurements.md',md);console.log('PASS: private-clock application browser latency checks');
