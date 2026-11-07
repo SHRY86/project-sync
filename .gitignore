@@ -3,3 +3,9 @@
 node_modules/
 dist/
 *.zip
+public/audio/*.wav
+public/models/*.vrm
+public/models/*.vrma
+browser-preview.png
+test-results/
+playwright-report/

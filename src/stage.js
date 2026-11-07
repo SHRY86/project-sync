@@ -1,4 +1,6 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { AGENT_COLORS } from './score.js';
 
 /** Visualization only: renders states chosen independently by the workers. */
@@ -23,6 +25,33 @@ export class ConcertStage {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
+    this.cameraMode='front';this.assetStatus=Array(3).fill('Procedural fallback');this.loadModels();
+  }
+  async loadModels() {
+    const loader=new GLTFLoader();loader.register(parser=>new VRMLoaderPlugin(parser));
+    await Promise.all(['nova','luna','echo'].map(async(name,id)=>{
+      try {
+        const check=await fetch(`/models/${name}.vrm`,{method:'HEAD'});if(!check.ok || check.headers.get('content-type')?.includes('text/html'))return;
+        const gltf=await loader.loadAsync(`/models/${name}.vrm`);const vrm=gltf.userData.vrm;if(!vrm?.humanoid)throw new Error('No VRM humanoid');
+        VRMUtils.rotateVRM0(vrm);
+        vrm.scene.updateMatrixWorld(true);const bounds=new THREE.Box3().setFromObject(vrm.scene);const height=bounds.max.y-bounds.min.y;
+        if(!Number.isFinite(height)||height<.1)throw new Error('Invalid proportions');
+        vrm.scene.scale.setScalar(3.5/height);vrm.scene.position.y=-bounds.min.y*3.5/height;
+        const d=this.dancers[id];d.torso.visible=false;d.root.add(vrm.scene);d.vrm=vrm;d.rest=new Map();
+        for(const bone of ['hips','spine','leftUpperArm','rightUpperArm','leftUpperLeg','rightUpperLeg']){const b=vrm.humanoid.getNormalizedBoneNode(bone);if(b)d.rest.set(bone,b.quaternion.clone());}
+        this.assetStatus[id]='VRM loaded';
+      }catch(e){this.assetStatus[id]=`Procedural fallback (${e.message})`;console.info(name,e);}
+    }));
+  }
+  applyVRM(d,pose,state){
+    const offsets={hips:[0,pose.turn,pose.body],spine:[0,pose.turn*.3,pose.body*.5],leftUpperArm:[0,0,1.25+pose.armL*.7],rightUpperArm:[0,0,-1.25-pose.armR*.7],leftUpperLeg:[pose.legL,0,0],rightUpperLeg:[pose.legR,0,0]};
+    for(const [name,angles] of Object.entries(offsets)){const b=d.vrm.humanoid.getNormalizedBoneNode(name),rest=d.rest.get(name);if(b&&rest)b.quaternion.copy(rest).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...angles)));}
+    // Synthetic vowels are coarse cues only, never asserted to match WAV lyrics.
+    for(const vowel of ['aa','ih','ou','ee','oh'])d.vrm.expressionManager?.setValue(vowel,0);
+    const vowel={a:'aa',i:'ih',u:'ou',e:'ee',o:'oh'}[state.voice.vowel];
+    if(vowel)d.vrm.expressionManager?.setValue(vowel,state.playing && state.voice.pitch > 0 ? .15 : 0);
+    d.vrm.expressionManager?.setValue('blink',Math.max(0,1-Math.abs((state.beat%9)-8.8)*10));
+    d.vrm.update(1/60);
   }
   add(geometry, material, parent, x = 0, y = 0, z = 0) {
     const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); parent.add(mesh); return mesh;
@@ -38,6 +67,10 @@ export class ConcertStage {
       const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: .9 });
       this.add(box(.84, 1.2 + ((i * 7) % 5) * .3, .22), mat, this.scene, (i - 7) * 1.65, 1.3, -6.3);
     }
+    this.zoneRings=AGENT_COLORS.map((color,i)=>{
+      const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.65});
+      const ring=this.add(new THREE.TorusGeometry(1.3,.025,6,64),mat,this.scene,(i-1)*3.5,.23,0);ring.rotation.x=Math.PI/2;return ring;
+    });
     const accent = [0x42e8df, 0xff82c0, 0xb2a0ff];
     this.spots = accent.map((color, i) => {
       const s = new THREE.SpotLight(color, 80, 25, Math.PI / 7, .65, 1);
@@ -81,6 +114,7 @@ export class ConcertStage {
       const dancer = this.dancers[i];
       dancer.root.position.x = (i - 1) * 3.5 + pose.offset;
       dancer.root.position.y = pose.hop;
+      if(dancer.vrm)this.applyVRM(dancer,pose,state);
       dancer.torso.rotation.z = pose.body;
       dancer.torso.rotation.y = pose.turn;
       dancer.arms[0].rotation.z = -.25 + pose.armL * .7;
@@ -89,9 +123,16 @@ export class ConcertStage {
       dancer.legs[1].rotation.x = pose.legR;
       dancer.glow.position.x = dancer.root.position.x;
       dancer.glow.intensity = 5 + light.intensity * 11;
+      const ring=this.zoneRings[i];ring.material.color.setHex(light.color);ring.material.opacity=.3+light.intensity*.5;ring.scale.setScalar(1+pose.hop*.3);
+      this.spots[i].color.setHex(light.color);
       this.spots[i].intensity = 25 + light.intensity * (light.chorus ? 120 : 85);
       this.spots[i].target.position.x = (i - 1) * 3.5 + light.pan;
     });
+    const beat=states[0]?.beat||0;
+    if(this.cameraMode==='orbit')this.camera.position.set(Math.sin(beat*.025)*14,6,Math.cos(beat*.025)*17);
+    else if(this.cameraMode==='cinematic')this.camera.position.set(Math.sin(beat*.04)*5,4.5,13);
+    else this.camera.position.set(0,5.2,17);
+    this.camera.lookAt(0,2,0);
     this.renderer.render(this.scene, this.camera);
   }
   resize() {

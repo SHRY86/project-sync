@@ -1,79 +1,57 @@
-import { BPM, BEATS_PER_LOOP, decidePerformance } from './score.js';
-
-// One instance of this module runs inside EACH independent Web Worker.
-// The main thread never calculates beats, notes, light cues or choreography.
-const BEATS_PER_MS = BPM / 60_000;
-const calibration = [-0.006, 0.010, -0.008];
-let id, channel, startAt, session, timer;
-let isolated = false, lossProbability = 0, clockNoise = 3;
-let correction = 0, lastTx = 0, received = 0, dropped = 0;
-const peers = new Map();
-const now = () => performance.timeOrigin + performance.now();
-const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
-function beatDifference(a, b) {
-  let d = (a - b) % BEATS_PER_LOOP;
-  if (d > BEATS_PER_LOOP / 2) d -= BEATS_PER_LOOP;
-  if (d < -BEATS_PER_LOOP / 2) d += BEATS_PER_LOOP;
-  return d;
+import { decidePerformance } from './score.js';
+import { ShowClock, monotonicNow, clamp, rejectObservation, observationTime, MAX_OBSERVATION_AGE_MS, RATE } from './clock.js';
+import { Coordination } from './coordination.js';
+let id, channel, clock, coordination, timer, pausedAt=null, started=false;
+let network={isolated:false,lossProbability:0,latency:0,jitter:0,stress:false};
+let received=0,dropped=0,lastTx=0,epoch=0;
+const peers=new Map();
+// Retained after cache expiry: late older samples must never become fresh again.
+const clockWatermarks=new Map();
+function send(message) {
+  if(network.isolated) {dropped+=2;return;}
+  channel.postMessage({...message,id,sentAt:monotonicNow()});
 }
-function initialize(message) {
-  id = message.id;
-  session = message.session;
-  startAt = message.startAt;
-  clockNoise = message.clockNoise;
-  channel = new BroadcastChannel(`project-sync-${session}`);
-  channel.onmessage = (event) => {
-    const message = event.data;
-    if (message?.type !== 'clock' || message.id === id) return;
-    if (isolated || Math.random() < lossProbability) { dropped++; return; }
-    received++;
-    // Timestamp is in a shared monotonic time domain ONLY because all workers
-    // run on the same machine. This is not an Internet clock protocol.
-    peers.set(message.id, { beat: message.beat, sentAt: message.sentAt, seenAt: now() });
-  };
-  timer = setInterval(tick, 33);
-  tick();
+function deliver(m, token) {
+  if(token!==epoch || network.isolated || pausedAt!==null) {dropped++;return;}
+  const now=monotonicNow();
+  if(now-m.sentAt>1200 || now<m.sentAt) {dropped++;return;}
+  if(m.type==='clock') {
+    if(rejectObservation(m,now,clockWatermarks.get(m.id))) {dropped++;return;}
+    clockWatermarks.set(m.id,observationTime(m));peers.set(m.id,m);
+  }
+  received++;
+  if(m.type!=='clock') coordination.receive(m,clock.beat,send);
 }
 function tick() {
-  const timestamp = now();
-  const elapsed = Math.max(0, timestamp - startAt);
-  const baseBeat = elapsed * BEATS_PER_MS;
-  // Deliberately bounded phase imperfections: disconnects cannot accumulate
-  // arbitrary drift in this single-machine demo.
-  const local = baseBeat + clockNoise * (calibration[id] + 0.002 * Math.sin(elapsed / 1900 + id));
-  let errorSum = 0, activePeers = 0;
-  for (const [peerId, peer] of peers) {
-    if (timestamp - peer.seenAt > 1200) { peers.delete(peerId); continue; }
-    const predicted = peer.beat + (timestamp - peer.sentAt) * BEATS_PER_MS;
-    errorSum += beatDifference(predicted, local + correction);
-    activePeers++;
-  }
-  // Each agent independently approaches the mean of fresh peer observations.
-  correction *= 0.984;
-  if (activePeers) correction += clamp((errorSum / activePeers) * 0.035, -0.004, 0.004);
-  correction = clamp(correction, -0.10, 0.10);
-  const beat = Math.max(0, local + correction);
-  if (timestamp - lastTx >= 180) {
-    lastTx = timestamp;
-    if (!isolated && Math.random() >= lossProbability) {
-      channel.postMessage({ type: 'clock', id, beat, sentAt: timestamp });
-    } else {
-      dropped += 2;
+  const now=monotonicNow();
+  for(const [key,p] of peers) if(now-observationTime(p)>=MAX_OBSERVATION_AGE_MS) peers.delete(key);
+  const beat=pausedAt===null ? clock.tick(now,peers,network.isolated) : clock.beat;
+  if(pausedAt===null && now-lastTx>180) {
+    lastTx=now; send({type:'clock',beat,sampleAt:now,playing:now>=clock.startAt,rate:RATE+clock.driftRate()});
+    // Repeat proposal and acknowledgements until deadline to tolerate packet loss.
+    for(const p of coordination.events.values()) if(beat<p.target-1) {
+      if(p.origin===id) send({type:'proposal',key:p.key,target:p.target,origin:id});
+      send({type:'ack',key:p.key,target:p.target,origin:p.origin});
     }
   }
-  // ALL artistic decisions take place HERE, not in the renderer.
-  const performanceState = decidePerformance(id, beat);
-  postMessage({ type: 'state', id, beat, ...performanceState, peers: activePeers,
-    isolated, received, dropped, timestamp });
+  const variation=coordination.update(beat);
+  const state=decidePerformance(id,beat,variation);
+  postMessage({type:'state',id,beat,...state,timestamp:now,rate:RATE+clock.driftRate(),playing:pausedAt===null && now>=clock.startAt,peers:[...peers.keys()],isolated:network.isolated,received,dropped,correction:clock.correction,proposal:coordination.status});
 }
-onmessage = ({ data }) => {
-  if (data.type === 'init') initialize(data);
-  if (data.type === 'network') {
-    if (typeof data.isolated === 'boolean') {
-      isolated = data.isolated;
-      if (isolated) peers.clear();
-    }
-    if (typeof data.lossProbability === 'number') lossProbability = data.lossProbability;
-    if (typeof data.clockNoise === 'number') clockNoise = data.clockNoise;
+onmessage=({data:m})=>{
+  if(m.type==='init' && !started) {
+    started=true; id=m.id; clock=new ShowClock(id,m.startAt); coordination=new Coordination(id);
+    channel=new BroadcastChannel(`project-sync-${m.session}`);
+    channel.onmessage=({data})=>{
+      if(!data || !Number.isFinite(data.sentAt) || (data.type==='clock' && !Number.isFinite(data.beat)) || data.id===id || !Number.isInteger(data.id) || data.id<0 || data.id>2) return;
+      if(network.isolated || Math.random()<network.lossProbability) {dropped++;return;}
+      const delay=clamp(network.latency+(Math.random()*2-1)*network.jitter,0,2000);
+      const token=epoch;setTimeout(()=>deliver(data,token),delay);
+    };
+    timer=setInterval(tick,33);tick();
   }
+  if(m.type==='network') {network={...network,...m}; clock.stress=network.stress;if(network.isolated){peers.clear();epoch++;}}
+  if(m.type==='pause' && pausedAt===null) {pausedAt=monotonicNow();peers.clear();epoch++;}
+  if(m.type==='resume' && pausedAt!==null) {const now=monotonicNow();clock.startAt+=now-pausedAt;clock.last=now;pausedAt=null;peers.clear();}
+  if(m.type==='propose' && pausedAt===null) {const p=coordination.propose(clock.beat);coordination.receive(p,clock.beat,send);send(p);}
 };

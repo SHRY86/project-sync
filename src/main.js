@@ -1,16 +1,11 @@
 import { AgentFleet } from './agents.js';
 import { VocalMixer } from './audio.js';
-import { ConcertStage } from './stage.js';
 import { ConcertUI } from './ui.js';
-
-const vocals = new VocalMixer();
-const fleet = new AgentFleet();
-const ui = new ConcertUI(fleet, vocals);
+const audio=new VocalMixer(),fleet=new AgentFleet(),ui=new ConcertUI(fleet,audio);
 let stage;
-try { stage = new ConcertStage(document.getElementById('stage')); }
-catch (error) { ui.showError(`3D renderer failed: ${error.message}`); console.error(error); }
-fleet.start();
-setInterval(() => { ui.update(fleet.states); vocals.update(fleet.states); }, 100);
-function animate() { stage?.render(fleet.states); requestAnimationFrame(animate); }
-animate();
-window.addEventListener('pagehide', () => fleet.stop());
+// Renderer failure must not prevent independent workers, audio or controls.
+import('./stage.js').then(({ConcertStage})=>{stage=new ConcertStage(document.getElementById('stage'));}).catch(e=>ui.showError(`3D unavailable: ${e.message}`));
+document.getElementById('camera').onchange=e=>{if(stage)stage.cameraMode=e.target.value;};
+setInterval(()=>{ui.update(fleet.states);audio.update(fleet.states);document.getElementById('modelStatus').textContent=stage?.assetStatus.map((s,i)=>`${['NOVA','LUNA','ECHO'][i]}: ${s}`).join(' · ')||'Loading stage…';},50);
+function frame(){stage?.render(fleet.states);requestAnimationFrame(frame);}frame();
+window.addEventListener('pagehide',()=>{fleet.stop();audio.reset();audio.ctx?.close();});
