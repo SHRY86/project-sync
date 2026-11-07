@@ -1,3 +1,5 @@
+import { audioCommands } from './audio-selection.js';
+import { freshStates } from './metrics.js';
 /**
  * Local audio mixer / sound output. AGENTS choose pitch, vowel and gain.
  * A browser Web Worker cannot directly use the Web Audio output device, so
@@ -16,17 +18,17 @@ export class VocalMixer {
       catch(e){console.info(`Audio ${name}: ${e.message}`);}
     }));
     this.selection=['nova','luna','echo'].every(n=>this.buffers.has(n)) ? ['nova','luna','echo'] : ['concert-instrumental','concert-vocals'].every(n=>this.buffers.has(n)) ? ['concert-instrumental','concert-vocals'] : this.buffers.has('concert-full') ? ['concert-full'] : [];
-    this.status=this.selection.length===3 ? 'Aligned per-agent stems' : this.selection.length ? 'Demonstration mix fallback · NOVA playback position' : 'Synthetic vowel arrangement · not VOCALOID singing';
+    this.status=this.selection.length===3 ? 'Aligned per-agent stems' : this.selection.length ? 'Demonstration mix fallback · median of fresh living agents' : 'Synthetic vowel arrangement · not VOCALOID singing';
   }
   async enable() { if(!this.ctx) {this.create();await this.ctx.resume();await this.loadAssets();}await this.ctx.resume();this.enabled=true; }
   setVolume(value){this.volume=value;if(this.master)this.master.gain.setTargetAtTime(this.enabled?value:0,this.ctx.currentTime,.03);}
   reset(){this.generation++;for(const t of this.tracks.values())this.fadeStop(t);this.tracks.clear();this.voices.forEach(v=>{v.lastNote=-1;v.noteGain.gain.setTargetAtTime(0,this.ctx.currentTime,.01);});}
   fadeStop(t){const now=this.ctx.currentTime;t.gain.gain.cancelScheduledValues(now);t.gain.gain.setTargetAtTime(0,now,.015);try{t.source.stop(now+.08);}catch{}}
-  playAsset(name,state){
-    const now=this.ctx.currentTime,desired=(state.audio.position+(performance.now()-state.receivedAt)/1000)%32;
+  playAsset(name,command){
+    const now=this.ctx.currentTime,desired=command.position%32;
     let t=this.tracks.get(name);
     if(t){const actual=(t.position+(now-t.at)*t.rate)%32;const error=((desired-actual+48)%32)-16;
-      if(Math.abs(error)<.18){const rate=1+Math.max(-.025,Math.min(.025,error*.15));t.position=actual;t.at=now;t.rate=rate;t.source.playbackRate.setTargetAtTime(rate,now,.1);return;}
+      if(Math.abs(error)<.18){const rate=1+Math.max(-.025,Math.min(.025,(command.rate-1)+error*.15));t.position=actual;t.at=now;t.rate=rate;t.source.playbackRate.setTargetAtTime(rate,now,.1);return;}
       this.fadeStop(t);
     }
     const source=this.ctx.createBufferSource(),gain=this.ctx.createGain();source.buffer=this.buffers.get(name);source.loop=true;source.loopStart=0;source.loopEnd=32;source.connect(gain);gain.connect(this.master);gain.gain.value=0;gain.gain.setTargetAtTime(1,now+.025,.02);
@@ -63,13 +65,17 @@ export class VocalMixer {
     if (!this.ctx) return;
     const time = this.ctx.currentTime;
     this.setVolume(this.volume);
-    const playing=states.some(s=>s?.playing);
-    if(!playing){if(this.tracks.size)this.reset();this.voices.forEach(v=>v.output.gain.setTargetAtTime(0,time,.02));return;}
-    for(const name of this.selection||[]) {const id=['nova','luna','echo'].indexOf(name);const s=id<0?states.find(s=>s?.playing&&s?.alive!==false):states[id];if(s?.playing)this.playAsset(name,s);else if(this.tracks.has(name)){this.fadeStop(this.tracks.get(name));this.tracks.delete(name);}}
+    const fresh = freshStates(states,performance.now());
+    const liveIds = new Set(fresh.map(s=>s.id));
+    const commands=audioCommands(states,this.selection||[]);
+    const activeNames=new Set(commands.map(c=>c.name));
+    for(const [name,track] of this.tracks)if(!activeNames.has(name)){this.fadeStop(track);this.tracks.delete(name);}
+    this.commands=commands;
+    for(const command of commands)this.playAsset(command.name,command);
     states.forEach((state, id) => {
       if (!state) {this.voices[id].output.gain.setTargetAtTime(0,time,.02);return;}
       const voice = this.voices[id];
-      voice.output.gain.setTargetAtTime(this.enabled && !this.selection?.length && state.playing ? 1 : 0,time,.03);
+      voice.output.gain.setTargetAtTime(this.enabled && !this.selection?.length && liveIds.has(id) ? 1 : 0,time,.03);
       const { pitch, vowel, volume, noteIndex } = state.voice;
       voice.saw.frequency.setTargetAtTime(Math.max(40, pitch || 220), time, .025);
       const formants = FORMANTS[vowel] || FORMANTS.a;

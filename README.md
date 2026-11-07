@@ -36,8 +36,8 @@ No music files are included. Supply licensed, aligned, seamless 32-second WAVs u
 Selection is exclusive, preventing duplicate full mix + stem playback:
 
 1. All of `nova.wav`, `luna.wav`, `echo.wav`: each agent controls its aligned part.
-2. Both `concert-instrumental.wav` and `concert-vocals.wav`: demonstration mix fallback, both following NOVA's playback-position commands.
-3. `concert-full.wav`: explicitly labelled full-mix demonstration fallback following NOVA.
+2. Both `concert-instrumental.wav` and `concert-vocals.wav`: demonstration mix fallback, both following the circular median of fresh living agents' playback-position commands.
+3. `concert-full.wav`: explicitly labelled full-mix demonstration fallback following the living-agent median.
 4. Missing, invalid or incomplete assets: clearly labelled synthetic vowel arrangement, **not VOCALOID singing**.
 
 A missing counterpart is not guessed or silently mixed into another mode. Export all supplied WAVs at offset zero; mismatched duration (>60 ms from 32 seconds) is rejected. Each source starts with a short output lead accounted for in its initial position. Small position errors use ±2.5% playback-rate recovery; errors ≥180 ms crossfade to the agent's requested position. Decoded loop edges receive a 4 ms fade. One AudioContext is reused across restart; active tracks fade and stop on pause/restart. Controls provide mute and master volume. Playback adaptation is browser-local, not sample-accurate distributed speakers.
