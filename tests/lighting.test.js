@@ -31,3 +31,15 @@ test('renderer maps emitted zone commands exactly and extinguishes killed zones'
  adapter.apply(2,null);assert.equal(z.spot.intensity,0);assert.equal(z.beam.visible,false);assert.ok(z.bars.every(b=>b.material.emissiveIntensity===0));
 });
 test('performance settings validate and overview stays under 200 characters',()=>{assert.equal(performanceSettings({energy:100}).energy,3);assert.equal(performanceSettings({lightingLevel:-5}).lightingLevel,0);assert.ok(readFileSync('docs/project-overview.md','utf8').trim().length<=200);});
+test('NOVA and LUNA share visual starting state and routine, not a clock or music role',()=>{
+ for(const beat of [0,.25,1,3.125,8,15,31.8]){
+  const nova=decidePerformance(0,beat),luna=decidePerformance(1,beat);
+  assert.deepEqual(nova.pose,luna.pose);
+  const {color:a,...novaLight}=nova.light,{color:b,...lunaLight}=luna.light;
+  assert.deepEqual(novaLight,lunaLight);assert.notEqual(a,b);assert.notEqual(nova.audio.role,luna.audio.role);
+ }
+ const nova=new PeerAgent(0,'nova',()=>{}),luna=new PeerAgent(1,'luna',()=>{});
+ assert.notEqual(nova.clock,luna.clock);nova.clock.join(4,0);luna.clock.join(4.5,0);
+ assert.notDeepEqual(nova.tick(0).pose,luna.tick(0).pose);
+ assert.notDeepEqual(decidePerformance(0,0).pose,decidePerformance(2,0).pose);
+});

@@ -4,3 +4,6 @@ export function performanceSettings(settings={}){
  const finite=(value,fallback,lo,hi)=>Number.isFinite(value)?Math.max(lo,Math.min(hi,value)):fallback;
  return Object.freeze({energy:finite(settings.energy,DEFAULT_PERFORMANCE.energy,0,3),lightingEnabled:typeof settings.lightingEnabled==='boolean'?settings.lightingEnabled:DEFAULT_PERFORMANCE.lightingEnabled,lightingLevel:finite(settings.lightingLevel,DEFAULT_PERFORMANCE.lightingLevel,0,1)});
 }
+
+/** NOVA and LUNA demonstrate unison; ECHO retains a different visual phrase. */
+export const visualPattern=id=>id===1?0:id;

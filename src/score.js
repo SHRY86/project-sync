@@ -1,5 +1,5 @@
 import {decideLighting} from './lighting.js';
-import {performanceSettings} from './performance-settings.js';
+import {performanceSettings,visualPattern} from './performance-settings.js';
 /** Replicated score/configuration. Each Worker derives decisions from its own beat. */
 export const BPM = 120;
 // Only the peer phase protocol wraps. Song position and choreography do NOT loop.
@@ -28,7 +28,7 @@ export function decidePerformance(id,beat,variation=false,config=DEFAULT_SONG,se
   const performance=performanceSettings(settings),energy=performance.energy;
   const section=sectionAt(beat,config),finished=section==='FINISHED';
   const durationBeats=config.durationSeconds*2,progress=Math.min(1,Math.max(0,beat/durationBeats));
-  const note=guideNote(beat),slow=beat*Math.PI/4,offset=id*Math.PI*2/3;
+  const note=guideNote(beat),slow=beat*Math.PI/4,offset=visualPattern(id)*Math.PI*2/3;
   // A quiet round: gentle rocking, small steps, soft bell gestures, then a bow.
   const closing=Math.max(0,Math.min(1,(progress-.92)/.08));
   const motion=finished?0:1-closing;
