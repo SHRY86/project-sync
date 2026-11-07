@@ -6,7 +6,10 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "test": "node --test",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "report:clock": "node scripts/clock-report.mjs",
+    "test:browser": "node scripts/browser-check.mjs && node scripts/browser-clock-check.mjs && node scripts/browser-assets-check.mjs && node scripts/browser-design-check.mjs",
+    "quality": "npm test && npm run build"
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.4.0",

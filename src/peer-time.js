@@ -16,7 +16,7 @@ export class PeerTime {
   age(sampleAt, now) { return this.best ? now + this.best.offset - sampleAt : null; }
   fresh(now) { return this.best && now - this.best.at < 8000; }
   accept(message, now) {
-    if (!this.fresh(now) || !Number.isFinite(message.beat) || !Number.isFinite(message.sampleAt) || !Number.isFinite(message.rate) || message.rate < .001 || message.rate > .003) return false;
+    if (!this.fresh(now) || !Number.isFinite(message.beat) || !Number.isFinite(message.sampleAt) || !Number.isFinite(message.rate) || (message.rate < .001 && !(message.playing===false && message.rate===0)) || message.rate > .003) return false;
     const age = this.age(message.sampleAt, now);
     if (message.sampleAt <= this.watermark || age < -this.best.rtt / 2 - 20 || age >= MAX_OBSERVATION_AGE_MS) return false;
     this.watermark = message.sampleAt;

@@ -28,7 +28,7 @@ export class ConcertStage {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
-    this.cameraMode='front';this.assetStatus=Array(3).fill('Procedural fallback');this.animationStatus=Array(3).fill('Procedural dance');this.loadModels();
+    this.cameraMode='front';this.assetStatus=Array(3).fill('Procedural fallback');this.animationStatus=Array(3).fill('Procedural dance');this.modelRequests=Array(3);this.animationRequests=Array(3);this.loadModels();
   }
   loader(){
     const manager=new THREE.LoadingManager();
@@ -49,9 +49,9 @@ export class ConcertStage {
     d.torso.visible=true;
   }
   async loadModel(id,url){
-    this.clearModel(id);let candidate;
+    const token=Symbol();this.modelRequests[id]=token;this.clearModel(id);let candidate;
     try{
-      const gltf=await this.loader().loadAsync(url),vrm=gltf.userData.vrm;candidate=vrm;if(!vrm?.humanoid)throw new Error('No VRM humanoid');
+      const gltf=await this.loader().loadAsync(url),vrm=gltf.userData.vrm;candidate=vrm;if(this.modelRequests[id]!==token){if(vrm?.scene)VRMUtils.deepDispose(vrm.scene);return false;}if(!vrm?.humanoid)throw new Error('No VRM humanoid');
       VRMUtils.rotateVRM0(vrm);vrm.scene.updateMatrixWorld(true);
       const bounds=new THREE.Box3().setFromObject(vrm.scene),height=bounds.max.y-bounds.min.y;
       if(!Number.isFinite(height)||height<.1)throw new Error('Invalid model proportions');
@@ -60,7 +60,7 @@ export class ConcertStage {
       const d=this.dancers[id];d.vrm=vrm;d.root.add(vrm.scene);d.torso.visible=false;d.rest=new Map();
       for(const name of ['hips','spine','leftUpperArm','rightUpperArm','leftUpperLeg','rightUpperLeg']){const b=vrm.humanoid.getNormalizedBoneNode(name);if(b)d.rest.set(name,b.quaternion.clone());}
       this.assetStatus[id]='VRM loaded locally';if(d.animation)this.bindAnimation(id);return true;
-    }catch(e){if(this.dancers[id].vrm)this.clearModel(id);else if(candidate?.scene)VRMUtils.deepDispose(candidate.scene);this.assetStatus[id]=`Procedural fallback: ${e.message}`;return false;}
+    }catch(e){if(this.modelRequests[id]!==token){if(candidate?.scene)VRMUtils.deepDispose(candidate.scene);return false;}if(this.dancers[id].vrm)this.clearModel(id);else if(candidate?.scene)VRMUtils.deepDispose(candidate.scene);this.assetStatus[id]=`Procedural fallback: ${e.message}`;return false;}
   }
   bindAnimation(id){
     const d=this.dancers[id];if(!d.vrm||!d.animation)return;
@@ -69,13 +69,13 @@ export class ConcertStage {
     d.mixer=new THREE.AnimationMixer(d.vrm.scene);d.mixer.clipAction(clip).play();d.clipDuration=clip.duration;this.animationStatus[id]=`VRMA beat-sampled (${clip.duration.toFixed(2)} s)`;
   }
   async loadAnimation(id,url){
-    const d=this.dancers[id];d.mixer?.stopAllAction();d.mixer=null;d.animation=null;
-    try{const gltf=await this.loader().loadAsync(url);const animation=gltf.userData.vrmAnimations?.[0];if(!animation)throw new Error('No VRM animation');d.animation=animation;
+    const token=Symbol();this.animationRequests[id]=token;const d=this.dancers[id];d.mixer?.stopAllAction();d.mixer=null;d.animation=null;
+    try{const gltf=await this.loader().loadAsync(url);if(this.animationRequests[id]!==token)return false;const animation=gltf.userData.vrmAnimations?.[0];if(!animation)throw new Error('No VRM animation');d.animation=animation;
       this.animationStatus[id]='VRMA loaded; assign a VRM to play';this.bindAnimation(id);return true;
-    }catch(e){d.animation=null;d.mixer=null;this.animationStatus[id]=`Procedural dance: ${e.message}`;return false;}
+    }catch(e){if(this.animationRequests[id]!==token)return false;d.animation=null;d.mixer=null;this.animationStatus[id]=`Procedural dance: ${e.message}`;return false;}
   }
-  async loadModelFile(id,file){try{validateFile(file,'.vrm');return await withObjectURL(file,url=>this.loadModel(id,url));}catch(e){this.clearModel(id);this.assetStatus[id]=`Procedural fallback: ${e.message}`;return false;}}
-  async loadAnimationFile(id,file){try{validateFile(file,'.vrma');return await withObjectURL(file,url=>this.loadAnimation(id,url));}catch(e){this.dancers[id].mixer=null;this.animationStatus[id]=`Procedural dance: ${e.message}`;return false;}}
+  async loadModelFile(id,file){try{validateFile(file,'.vrm');return await withObjectURL(file,url=>this.loadModel(id,url));}catch(e){this.modelRequests[id]=Symbol();this.clearModel(id);this.assetStatus[id]=`Procedural fallback: ${e.message}`;return false;}}
+  async loadAnimationFile(id,file){try{validateFile(file,'.vrma');return await withObjectURL(file,url=>this.loadAnimation(id,url));}catch(e){this.animationRequests[id]=Symbol();this.dancers[id].mixer?.stopAllAction();this.dancers[id].mixer=null;this.dancers[id].animation=null;this.animationStatus[id]=`Procedural dance: ${e.message}`;return false;}}
   applyVRM(d,pose,state){
     const offsets={hips:[0,pose.turn,pose.body],spine:[0,pose.turn*.3,pose.body*.5],leftUpperArm:[0,0,1.25+pose.armL*.7],rightUpperArm:[0,0,-1.25-pose.armR*.7],leftUpperLeg:[pose.legL,0,0],rightUpperLeg:[pose.legR,0,0]};
     if(d.mixer)sampleAnimation(d.mixer,state.beat,d.clipDuration);
@@ -144,7 +144,7 @@ export class ConcertStage {
   render(states) {
     states.forEach((state, i) => {
       this.dancers[i].root.visible=!!state&&!state.killed;
-      if (!state || state.killed) {this.spots[i].intensity=0;this.dancers[i].glow.intensity=0;return;}
+      if (!state || state.killed) {this.spots[i].intensity=0;this.dancers[i].glow.intensity=0;this.zoneRings[i].material.opacity=.1;return;}
       const { pose, light } = state;
       const dancer = this.dancers[i];
       dancer.root.position.x = (i - 1) * 3.5 + pose.offset;

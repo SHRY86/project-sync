@@ -367,6 +367,125 @@
     ]
   },
   {
+    "name": "kill LUNA / rejoin",
+    "latency": 150,
+    "jitter": 60,
+    "loss": 0.3,
+    "profile": "demo",
+    "actual": {
+      "max": 0.09095072944722915,
+      "mean": 0.039160228501596075,
+      "p95": 0.06960279444624007
+    },
+    "ui": {
+      "max": 0.09095072944720073,
+      "mean": 0.03916022850159737,
+      "p95": 0.06960279444624007
+    },
+    "artifact": {
+      "max": 5.684341886080802e-14,
+      "mean": 3.8079623892706105e-15,
+      "p95": 5.684341886080802e-14
+    },
+    "isolation": null,
+    "recoveryMs": null,
+    "joinMs": 753,
+    "drops": 4628,
+    "running": 3,
+    "finalDisagreement": 0.0421307224416978,
+    "finalBeats": [
+      353.7383660781827,
+      353.7925448006244,
+      353.7641310466695
+    ]
+  },
+  {
+    "name": "kill ECHO / rejoin",
+    "latency": 150,
+    "jitter": 60,
+    "loss": 0.3,
+    "profile": "demo",
+    "actual": {
+      "max": 0.08816586527194659,
+      "mean": 0.043190873525325114,
+      "p95": 0.0715751343038562
+    },
+    "ui": {
+      "max": 0.08816586527194659,
+      "mean": 0.043190873525324906,
+      "p95": 0.0715751343038562
+    },
+    "artifact": {
+      "max": 5.684341886080802e-14,
+      "mean": 1.002236406465312e-15,
+      "p95": 0
+    },
+    "isolation": null,
+    "recoveryMs": null,
+    "joinMs": 753,
+    "drops": 4629,
+    "running": 3,
+    "finalDisagreement": 0.053000540885307146,
+    "finalBeats": [
+      353.94440690971305,
+      353.99740745059836,
+      353.9663622615233
+    ]
+  },
+  {
+    "name": "initiator dies during countdown",
+    "latency": 150,
+    "jitter": 0,
+    "loss": 0,
+    "profile": "demo",
+    "actual": {
+      "max": 0.02872106744763414,
+      "mean": 0.025789624546051056,
+      "p95": 0.02872106744743519
+    },
+    "ui": {
+      "max": 0.02872106744760572,
+      "mean": 0.025789624546051163,
+      "p95": 0.028721067447406767
+    },
+    "artifact": {
+      "max": 5.684341886080802e-14,
+      "mean": 5.959822909034368e-15,
+      "p95": 5.684341886080802e-14
+    },
+    "isolation": null,
+    "recoveryMs": null,
+    "joinMs": 390,
+    "drops": 1208,
+    "running": 3,
+    "finalDisagreement": 0.02865167933958901,
+    "finalBeats": [
+      353.7605767736401,
+      353.77724421036487,
+      353.75201886010353
+    ]
+  },
+  {
+    "name": "100% loss before start cue",
+    "latency": 50,
+    "jitter": 0,
+    "loss": 0,
+    "profile": "demo",
+    "actual": null,
+    "ui": null,
+    "artifact": null,
+    "isolation": null,
+    "recoveryMs": null,
+    "joinMs": null,
+    "drops": 10952,
+    "running": 1,
+    "finalBeats": [
+      352.88410800000344,
+      0,
+      0
+    ]
+  },
+  {
     "name": "lost start cues / listening join",
     "latency": 150,
     "jitter": 0,

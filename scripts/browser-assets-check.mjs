@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {makeDemoAudio,wavBytes} from './make-demo-audio.mjs';
 const directory=makeDemoAudio(mkdtempSync(join(tmpdir(),'sync-original-audio-')));
 writeFileSync(join(directory,'invalid.vrm'),'Not a VRM file');writeFileSync(join(directory,'invalid.vrma'),'Not a VRMA file');
-const browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
 await page.addInitScript(()=>{
  window.audioEvidence={contexts:0,active:0,started:0};const Original=window.AudioContext;
  window.AudioContext=class extends Original{constructor(...args){super(...args);window.audioEvidence.contexts++;const create=this.createBufferSource.bind(this);this.createBufferSource=()=>{const s=create(),start=s.start.bind(s);s.start=(...a)=>{window.audioEvidence.active++;window.audioEvidence.started++;return start(...a);};s.addEventListener('ended',()=>window.audioEvidence.active--);return s;};}};

@@ -1,36 +1,36 @@
 {
-  "method": "Actual Workers, private oscillators; seven seconds per case, selected ECHO start cue, no timestamp comparison across realms. Receipt-aligned observer estimates include unmeasured delivery queueing and are NOT simultaneous worker truth or sample-accurate audio measurements.",
+  "method": "Actual application Workers and WebGL/UI load, private random-offset oscillators, seven seconds per case, ECHO selected for the one-time start cue. Receipt-aligned observer estimates include unmeasured delivery queueing; they are NOT simultaneous worker truth or physical audio alignment. No source-only test harness or epoch exchange is used.",
   "results": [
     {
       "latency": 0,
       "stats": {
-        "max": 0.051612341881281054,
-        "mean": 0.027083377511440188,
-        "p95": 0.046021492870480074
+        "max": 0.04675791213209379,
+        "mean": 0.02669586162044748,
+        "p95": 0.03559057689366796
       }
     },
     {
       "latency": 50,
       "stats": {
-        "max": 0.05981021342344661,
-        "mean": 0.0316342438734958,
-        "p95": 0.05287177231265616
+        "max": 0.05067078618773735,
+        "mean": 0.031527522873100663,
+        "p95": 0.04614172537029049
       }
     },
     {
       "latency": 150,
       "stats": {
-        "max": 0.061862962966444,
-        "mean": 0.03358563196418185,
-        "p95": 0.05286190169630345
+        "max": 0.058295207819782036,
+        "mean": 0.034471364143358066,
+        "p95": 0.05013678833991264
       }
     },
     {
       "latency": 500,
       "stats": {
-        "max": 0.05802831761988614,
-        "mean": 0.0350737657192603,
-        "p95": 0.04665749999404056
+        "max": 0.05182407848873538,
+        "mean": 0.03623594145656469,
+        "p95": 0.04714750000819379
       }
     }
   ]

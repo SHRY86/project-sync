@@ -1,6 +1,6 @@
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const browser=await chromium.launch({headless:true});const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
 try{
  await page.goto(process.env.SYNC_TEST_URL||'http://127.0.0.1:5173');await page.click('#startButton');await page.waitForFunction(()=>document.getElementById('state0').textContent==='PERFORMING');
  for(const [width,height] of [[1280,720],[1440,900],[390,844]]){

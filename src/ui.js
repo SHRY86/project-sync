@@ -29,7 +29,7 @@ export class ConcertUI {
   }
   notice(message){$('notice').textContent=message;}
   async start(){
-    try{await this.audio.enable();this.audio.wasEnabled=true;}catch(e){this.notice(`Sound unavailable; visual concert continues. ${e.message}`);}
+    try{await this.audio.enable();}catch(e){this.notice(`Sound unavailable; visual concert continues. ${e.message}`);}
     if(!this.fleet.workers.some(Boolean))this.fleet.start();$('welcome').hidden=true;this.refresh();
   }
   restart(){this.audio.reset();this.fleet.start();this.graph.history=[];this.recovery='—';this.refresh();}
@@ -40,7 +40,7 @@ export class ConcertUI {
   beginRecovery(){this.recoveryStart=performance.now();this.stableSince=null;this.recovery='Measuring…';}
   restore(){this.fleet.isolated.fill(false);this.setNetwork({lossProbability:0,latency:0,jitter:0});this.beginRecovery();this.refresh();}
   refresh(){
-    const started=!!this.fleet.session;$('pauseButton').textContent=this.fleet.paused?'Resume':'Pause';$('pauseButton').disabled=!started;$('restartButton').disabled=!started;$('proposalButton').disabled=!started;
+    const started=!!this.fleet.session;$('pauseButton').textContent=this.fleet.paused?'Resume':'Pause';$('pauseButton').disabled=!started;$('restartButton').disabled=!started;$('proposalButton').disabled=!this.fleet.states.some(s=>s?.alive&&s.playing);$('restoreButton').disabled=!started;
     for(let id=0;id<3;id++){const killed=started&&!this.fleet.workers[id];$(`kill${id}`).disabled=!started;$(`isolate${id}`).disabled=!started||killed;$(`kill${id}`).textContent=killed?'Rejoin':'Kill';$(`kill${id}`).setAttribute('aria-label',`${killed?'Rejoin':'Kill'} ${AGENT_NAMES[id]}`);$(`isolate${id}`).textContent=this.fleet.isolated[id]?'Reconnect':'Isolate';$(`isolate${id}`).setAttribute('aria-label',`${this.fleet.isolated[id]?'Reconnect':'Isolate'} ${AGENT_NAMES[id]}`);$(`isolate${id}`).classList.toggle('active',this.fleet.isolated[id]);}
   }
   showError(message){$('stageError').hidden=false;$('stageError').textContent=message;}
@@ -52,7 +52,7 @@ export class ConcertUI {
     const live=states.filter(s=>s?.alive&&s.playing&&now-s.receivedAt<1800);
     if(this.recoveryStart!==null){if(error<.08&&live.length>=2&&live.every(s=>s.peers.length>=live.length-1)){this.stableSince??=now;if(now-this.stableSince>=1000){this.recovery=`${((now-this.recoveryStart)/1000).toFixed(2)} s`;this.recoveryStart=null;}}else this.stableSince=null;}
     $('recovery').textContent=this.recovery;
-    $('messagesReceived').textContent=states.reduce((a,s)=>a+(s?.received??0),0);$('packetsDropped').textContent=states.reduce((a,s)=>a+(s?.dropped??0),0);
+    $('messagesReceived').textContent=this.fleet.totalReceived;$('packetsDropped').textContent=this.fleet.totalDropped;
     const faults=this.fleet.isolated.some(Boolean)||Object.values(this.fleet.network).some(Number);
     $('networkBadge').textContent=!this.fleet.session?'READY / DRIFT ON':this.fleet.paused?'PAUSED':faults?'SIMULATED NETWORK FAULTS':`${this.fleet.workers.filter(Boolean).length} PRIVATE OSCILLATORS`;
     $('networkBadge').classList.toggle('warning',faults);
@@ -60,9 +60,9 @@ export class ConcertUI {
     for(let id=0;id<3;id++){
       const s=states[id],killed=!!this.fleet.session&&!this.fleet.workers[id],stale=s&&now-s.receivedAt>=1800;
       $(`state${id}`).textContent=killed?'KILLED':stale?'STALE':s?.joining?'JOINING':s?.isolated?'ISOLATED':s?.playing?'PERFORMING':this.fleet.paused?'PAUSED':'READY';
-      $(`localBeat${id}`).textContent=s?s.beat.toFixed(2):'—';$(`section${id}`).textContent=s?`${s.section} · light ${s.light.intensity.toFixed(2)}`:'AWAITING CUE';
+      $(`localBeat${id}`).textContent=s?s.beat.toFixed(2):'—';$(`section${id}`).textContent=s?`${s.section} · light ${killed?'OFF':s.light.intensity.toFixed(2)}`:'AWAITING CUE';
       $(`clock${id}`).textContent=s?`${s.audio.role} · oscillator ${(s.rateError*100).toFixed(3)}% · coupling ${s.adjustment.toFixed(3)} b/s`:'Independent clock · default drift ON';
-      $(`phase${id}`).textContent=s?.phaseOffset!==null&&s?.phaseOffset!==undefined?`Local vs peer median: ${s.phaseOffset.toFixed(3)} b / ${(s.phaseOffset*500).toFixed(1)} ms`:'Local vs peers: unavailable';
+      $(`phase${id}`).textContent=s?.phaseOffset!==null&&s?.phaseOffset!==undefined?`Est. local vs peers: ${s.phaseOffset.toFixed(3)} b / ${(s.phaseOffset*500).toFixed(1)} ms`:'Local vs peers: unavailable';
       const rtt=s?.delayEstimates?.length?Math.max(...s.delayEstimates.map(p=>p.rtt)):null;
       $(`peers${id}`).textContent=`Fresh peers [${s?.peers.join(', ')??''}]${rtt===null?'':` · RTT ≤ ${rtt.toFixed(0)} ms`}`;
       $(`counts${id}`).textContent=`RX ${s?.received??0} · dropped ${s?.dropped??0}`;$(`cue${id}`).textContent=s?.proposal??'Canonical score';

@@ -64,7 +64,7 @@ The selected peer's relative 3000 ms countdown is the **one explicit centralized
 - **Peer scope:** BroadcastChannel is same-origin/same-computer, not cross-machine networking. A multi-machine version needs a transport, clock-rate estimation, membership/security and calibrated output-device scheduling. This implementation does not prove Internet convergence.
 - **Kill/rejoin:** any single death leaves the others running. A fresh peer acquires initial phase before performing; it does not jump a running clock. If every performer dies, empty peers have no show to learn: use Restart for a new cue/session.
 - **Encore is not consensus:** all three approvals must be locally present before target−1 beat. A missing/killed peer yields canonical fallback for a new proposal. Existing approvals cannot establish everyone else's knowledge; asymmetric partitions can produce different decisions. No authentication or Byzantine tolerance is implemented.
-- **Presentation:** rendering and sound output share a main thread and one physical speaker device. Browser suspension/queueing and hardware audio latency are not eliminated. UI disagreement aligns observations by receipt age, not unknowable Worker-to-main delay; it is an estimate. Counters count received packets and actual injected/rejected events, including transport control packets. Counters belong to each worker incarnation and restart on rejoin.
+- **Presentation:** rendering and sound output share a main thread and one physical speaker device. Browser suspension/queueing and hardware audio latency are not eliminated. UI disagreement aligns observations by receipt age, not unknowable Worker-to-main delay; it is an estimate. Counters count received packets and actual injected/rejected events, including transport control packets. A blocked outbound broadcast counts once, not a guessed two-recipient fanout; inbound discards count per delivered packet. Per-agent counters restart on rejoin; aggregate observed counters preserve previous incarnations until show Restart.
 - **Models/music:** waveform duration is validated, not tempo, rights, lyrical accuracy or mix quality. Real model retargeting and auditory quality require manual checks with your actual assets.
 
 ## Assets: optional, local and explicit
@@ -113,12 +113,12 @@ Keyboard: **Space** start/pause · **M** enable/mute · **R** restart · **I** i
 ## Tests and measurements
 
 ```sh
-npm test
-node scripts/clock-report.mjs
-npm run build
+npm run quality
+npm run report:clock
 npx playwright install chromium
 npm run dev
 # Other terminal; substitute the actual port printed by Vite:
+# Run all four checks: SYNC_TEST_URL=http://127.0.0.1:5173 npm run test:browser
 SYNC_TEST_URL=http://127.0.0.1:5173 node scripts/browser-check.mjs
 SYNC_TEST_URL=http://127.0.0.1:5173 node scripts/browser-clock-check.mjs
 SYNC_TEST_URL=http://127.0.0.1:5173 node scripts/browser-assets-check.mjs

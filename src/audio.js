@@ -12,7 +12,7 @@ const FORMANTS = {
   i: [300, 2200, 3000], o: [500, 900, 2600], u: [350, 800, 2200]
 };
 export class VocalMixer {
-  constructor() { this.ctx = null; this.voices = []; this.enabled = false; this.buffers=new Map();this.tracks=new Map();this.status='Synthetic vowel arrangement · no VOCALOID assets';this.volume=.4;this.generation=0;this.assetReport=[]; }
+  constructor() { this.ctx = null; this.voices = []; this.enabled = false; this.buffers=new Map();this.tracks=new Map();this.status='Synthetic vowel arrangement · no VOCALOID assets';this.volume=.4;this.assetReport=[]; }
   async decode(name,bytes){
     const buffer=await this.ctx.decodeAudioData(bytes);validateDuration(buffer.duration);
     const fade=Math.floor(buffer.sampleRate*.004);
@@ -43,7 +43,7 @@ export class VocalMixer {
     this.reset();this.selectMode();this.assetReport=reports;return reports;
   }
   setVolume(value){this.volume=value;if(this.master)this.master.gain.setTargetAtTime(this.enabled?value:0,this.ctx.currentTime,.03);}
-  reset(){this.generation++;for(const t of this.tracks.values())this.fadeStop(t);this.tracks.clear();this.voices.forEach(v=>{v.lastNote=-1;v.noteGain.gain.setTargetAtTime(0,this.ctx.currentTime,.01);});}
+  reset(){for(const t of this.tracks.values())this.fadeStop(t);this.tracks.clear();this.voices.forEach(v=>{v.lastNote=-1;v.noteGain.gain.setTargetAtTime(0,this.ctx.currentTime,.01);});}
   fadeStop(t){const now=this.ctx.currentTime;t.gain.gain.cancelScheduledValues(now);t.gain.gain.setTargetAtTime(0,now,.015);try{t.source.stop(now+.08);}catch{}}
   playAsset(name,command){
     const now=this.ctx.currentTime,desired=command.position%32;
@@ -57,10 +57,8 @@ export class VocalMixer {
     source.start(now+.025,(desired+.025)%32);this.tracks.set(name,{source,gain,position:(desired+.025)%32,at:now+.025,rate:1});
   }
   async toggle() {
-    await this.enable();
-    this.enabled = !this.wasEnabled; this.wasEnabled=this.enabled; this.setVolume(this.volume);
-
-    return this.enabled;
+    const enabled=!this.enabled;
+    await this.enable();this.enabled=enabled;this.setVolume(this.volume);return this.enabled;
   }
   create() {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;

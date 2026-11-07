@@ -1,5 +1,6 @@
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 /** Original note pattern and simple oscillators; no samples, lyrics or voicebank. */
 export function wavBytes(samples,sampleRate=16000){
  const bytes=Buffer.alloc(44+samples.length*2);bytes.write('RIFF',0);bytes.writeUInt32LE(bytes.length-8,4);bytes.write('WAVEfmt ',8);bytes.writeUInt32LE(16,16);bytes.writeUInt16LE(1,20);bytes.writeUInt16LE(1,22);bytes.writeUInt32LE(sampleRate,24);bytes.writeUInt32LE(sampleRate*2,28);bytes.writeUInt16LE(2,32);bytes.writeUInt16LE(16,34);bytes.write('data',36);bytes.writeUInt32LE(samples.length*2,40);
@@ -21,4 +22,4 @@ export function makeDemoAudio(directory){
  const full=Float32Array.from({length},(_,i)=>parts.reduce((sum,p)=>sum+p[i],0));writeFileSync(`${out}/concert-full.wav`,wavBytes(full,rate));
  writeFileSync(`${out}/SYNTHETIC-DEMO.txt`,'Original procedurally synthesized PROJECT SYNC test arrangement. 120 BPM, 4/4, 64 beats, 32 seconds, offset zero. Not VOCALOID, singing or licensed samples. Use Load local assets to select the WAVs. Generated from repository source.\n');return out;
 }
-if(process.argv[1]&&import.meta.url===new URL(`file://${process.argv[1]}`).href)console.log(`Original synthetic demo files: ${makeDemoAudio(process.argv[2]||'.demo-audio')}`);
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)console.log(`Original synthetic demo files: ${makeDemoAudio(process.argv[2]||'.demo-audio')}`);
