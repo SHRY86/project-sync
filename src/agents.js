@@ -4,7 +4,7 @@ export class AgentFleet {
   spawn(id){
     const worker=new Worker(new URL('./agent.worker.js',import.meta.url),{type:'module'});
     this.workers[id]=worker;this.states[id]=null;
-    worker.onmessage=({data})=>{if(this.workers[id]!==worker)return;if(data.type==='state'){this.states[id]={...data,receivedAt:performance.now(),alive:true};const recovery=this.recoveries[id];if(recovery&&recovery.elapsed===null&&data.playing&&data.peers.length&&Math.abs(data.phaseOffset??Infinity)<.08)recovery.elapsed=performance.now()-recovery.started;this.onState?.(this.states[id]);}};
+    worker.onmessage=({data})=>{if(this.workers[id]!==worker)return;if(data.type==='state'){this.states[id]={...data,receivedAt:performance.now(),alive:true};const recovery=this.recoveries[id];if(recovery&&recovery.elapsed===null){const at=performance.now();if(data.playing&&data.peers.length&&Math.abs(data.phaseOffset??Infinity)<.08){recovery.stableSince??=at;if(at-recovery.stableSince>=1000)recovery.elapsed=at-recovery.started;}else recovery.stableSince=null;}this.onState?.(this.states[id]);}};
     worker.onerror=e=>{this.error=`Agent ${id}: ${e.message}`;};
     worker.postMessage({type:'init',id,session:this.session,seed:crypto.getRandomValues(new Uint32Array(1))[0],incarnation:crypto.randomUUID()});
     worker.postMessage({type:'oscillator',profile:this.profile,scale:this.scale});

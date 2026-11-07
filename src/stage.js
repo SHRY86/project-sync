@@ -166,7 +166,7 @@ export class ConcertStage {
     const beat=states.find(s=>s?.playing)?.beat||0;
     if(this.cameraMode==='orbit')this.camera.position.set(Math.sin(beat*.025)*14,6,Math.cos(beat*.025)*17);
     else if(this.cameraMode==='cinematic')this.camera.position.set(Math.sin(beat*.04)*5,4.5,13);
-    else this.camera.position.set(0,5.2,17);
+    else this.camera.position.set(0,4.8,14);
     this.camera.lookAt(0,2,0);
     this.renderer.render(this.scene, this.camera);
   }
