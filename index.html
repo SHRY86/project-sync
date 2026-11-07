@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PROJECT SYNC | Autonomous Concert</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <header class="masthead">
+    <div><div class="eyebrow">DECENTRALIZED CONCERT / HACKATHON BUILD</div><h1>PROJECT <span>SYNC</span><small> / 2.0</small></h1><p>Three performers. Three local show clocks. No live conductor.</p></div>
+    <div id="networkBadge" class="pill">● PEERS ONLINE</div>
+  </header>
+  <main class="layout">
+    <section class="stage" id="stage" aria-label="Live concert visualization">
+      <div class="stage-title"><strong>LIVE PERFORMANCE</strong><small>AGENT-DRIVEN CHOREOGRAPHY · LIGHTS · VOCALS</small></div>
+      <div class="stage-footer"><div id="showStatus">Booting autonomous stage controllers…</div><div id="barVisualization" class="bars" aria-hidden="true"></div></div>
+      <div id="stageError" class="stage-error" hidden></div>
+    </section>
+    <aside class="sidebar">
+      <section class="panel"><div class="panel-title"><h2>PERFORMANCE</h2><span class="tag">LOCAL DEMO</span></div>
+        <div class="controls"><button id="audioButton" class="btn primary">▶ Enable synthesized vocals</button><button id="restartButton" class="btn">↻ Restart show</button></div>
+        <p class="help">Click to enable sound (browsers block autoplay). Each agent chooses its own vocal notes and lighting cues; this browser mixes the audio.</p>
+      </section>
+      <section class="panel"><h2>NETWORK FAULTS</h2>
+        <div class="controls"><button id="isolateButton" class="btn">◎ Isolate LUNA</button><button id="lossButton" class="btn">◌ 60% packet loss</button><button id="restoreButton" class="btn full">↻ Restore connections</button></div>
+        <div class="slider"><label for="noise">Bounded local clock error</label><output id="noiseValue">3×</output></div><input type="range" min="0" max="8" value="3" id="noise">
+        <p class="help">Message failure does not stop any agent. Each uses a pre-agreed start cue, a local clock, and a cached show score.</p>
+      </section>
+      <section class="panel"><div class="panel-title"><h2>INDEPENDENT STAGE AGENTS</h2><span class="tag">P2P</span></div><div id="agents"></div></section>
+      <section class="panel"><h2>RESILIENCE METRICS</h2><div class="stats"><div><strong id="beatError">0.000</strong><small>Max beat disagreement</small></div><div><strong id="packetsDropped">0</strong><small>Messages dropped</small></div><div><strong id="messagesReceived">0</strong><small>Messages received</small></div><div><strong id="showBeat">0.0</strong><small>Show beat (A's estimate)</small></div></div></section>
+      <section class="panel compact"><h2>WHAT IS ACTUALLY P2P?</h2><p><b>Each Web Worker</b> independently selects dancing, note/vowel, spotlight intensity and show section. Workers exchange timed state directly using BroadcastChannel.</p><p><b>Not P2P:</b> the shared display, speaker and the one-time initial start cue. On real computers, synchronized audio playback needs a distributed clock solution.</p></section>
+    </aside>
+  </main>
+  <footer>Pure JavaScript + Three.js · Separate agent workers · No backend or logins · Synthetic vowel vocals (not lyric synthesis)</footer>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
