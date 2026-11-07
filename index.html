@@ -2,8 +2,8 @@
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#080d1b"><title>PROJECT SYNC · Independent by design</title><link rel="stylesheet" href="/src/styles.css"></head>
 <body>
-<header class="masthead"><div><div class="eyebrow">PRIVATE CLOCKS / COLLECTIVE PERFORMANCE</div><h1>PROJECT <span>SYNC</span></h1><p>Three virtual idols. No live conductor.</p></div><div class="header-actions"><button id="demoButton" class="btn" title="Guided demo (D)">Demo script <kbd>D</kbd></button><div id="networkBadge" class="pill">READY / DRIFT ON</div></div></header>
-<main class="layout">
+<header class="masthead"><div><div class="eyebrow">PRIVATE CLOCKS / COLLECTIVE PERFORMANCE</div><h1>PROJECT <span>SYNC</span></h1><p>Three virtual idols. No live conductor.</p></div><div class="header-actions"><a class="evidence-link" href="#claims">Evidence</a><button id="demoButton" class="btn" title="Guided demo (D)">Demo script <kbd>D</kbd></button><div id="networkBadge" class="pill">READY / DRIFT ON</div></div></header>
+<main class="layout" id="concert">
 <div class="visual-column">
 <section class="stage" id="stage" aria-label="Independent-agent virtual concert">
  <div class="stage-title"><strong>THE SYNC SESSIONS</strong><small>NOVA / LUNA / ECHO · 120 BPM · 64 BEATS</small></div>
@@ -23,6 +23,7 @@
 <details class="panel"><summary>How it works</summary><p>Each worker owns its oscillator, section, dance, lighting and musical part. Ping/pong estimates relative delay; phase coupling has no reference peer. The display and audio device are shared output adapters.</p><p>Encore requires all three approvals before a local deadline. Missing approval means canonical fallback. Asymmetric partitions may produce different local decisions: consensus is not guaranteed.</p><p>BroadcastChannel works on the same origin and computer. Private drift and network faults are synthetic.</p><p>Keyboard: Space start/pause · M audio · R restart · I isolate LUNA · K kill/rejoin NOVA · E encore · C camera · D guide.</p></details>
 </aside>
 </main>
+<section id="claims" class="panel claims" aria-label="Claims versus evidence"><div class="panel-title"><h2>CLAIMS VS EVIDENCE</h2><a href="#concert">Back to concert ↑</a></div><div class="claims-grid"><article><h3>Real</h3><ul><li>Separate module Web Workers</li><li>Private oscillator state; peer-only phase coupling</li><li>Per-agent score, dance, lights and music decisions</li><li>Real received / injected-drop counters</li><li>Actual terminate and empty-worker rejoin</li></ul></article><article><h3>Simulated</h3><ul><li>Clock offsets and rate error magnitude</li><li>Receiver latency, jitter and packet-loss faults</li><li>BroadcastChannel as the network, on one computer</li></ul><p>Underlying hardware is shared; the algorithms do not share its time origin.</p></article><article><h3>Not claimed</h3><ul><li>Cross-machine synchronization or networking</li><li>Partition-safe consensus</li><li>Real VOCALOID or exact lyrical lip-sync</li><li>Authentication or Byzantine tolerance</li><li>Sample-accurate distributed speakers</li></ul></article></div><p>Measurements: docs/clock-measurements.md (seeded model truth) and docs/browser-clock-measurements.md (receipt-aligned browser estimates). Encore requires all three approvals before a local deadline, but asymmetric partitions can produce different outcomes. A one-time selected-peer countdown is the explicit centralized start moment.</p></section>
 <footer>Local browser performance · No backend · Synthetic fallback is not VOCALOID singing · Mouth cues are coarse, not exact lyrical lip-sync</footer>
 <script type="module" src="/src/main.js"></script>
 </body></html>
